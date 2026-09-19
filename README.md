@@ -60,7 +60,7 @@ python main.py
 ## 运行测试
 
 ```powershell
-python -m pytest        # 361 项
+python -m pytest        # 407 项
 ```
 
 测试覆盖纯逻辑（ID 解析、预设计算、缓存 TTL）、网络层契约（脱机样本模拟 Steam 的
@@ -100,7 +100,7 @@ SteamGamePicker/
 │  ├─ worker.py             后台线程 + 队列 + 取消令牌
 │  ├─ state.py              状态机与控件启停映射
 │  └─ ui/                   主窗口、动画、设置窗口、主题
-├─ tests/                   361 项 pytest（含 Steam 响应样本 fixtures）
+├─ tests/                   407 项 pytest（含 Steam 响应样本 fixtures）
 ├─ packaging/               PyInstaller spec 与 Inno Setup 脚本
 ├─ tools/                   实测与图标生成脚本
 └─ docs/                    PRD、开发计划、验收记录

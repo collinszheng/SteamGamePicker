@@ -7,7 +7,7 @@
 | 验收日期 | 2026-09-19 |
 | 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3（Inno 未随附中文语言包） |
 | 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格 |
-| 自动化测试 | **405 项全部通过**（`python -m pytest`） |
+| 自动化测试 | **407 项全部通过**（`python -m pytest`）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
 | 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（用用户提供的 SteamID64 与密钥，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/<SteamID64>` → **61 款游戏，加载 0.55 秒**；账号矩阵中"非公开 / 空库 / 无效 Key"三项待提供对应账号 |
 
 ## 0. 结论摘要
@@ -203,7 +203,7 @@
 ## 5. 复现命令
 
 ```powershell
-# 全量测试（405 项）
+# 全量测试（407 项）
 cd SteamGamePicker
 python -m pytest
 
@@ -238,3 +238,24 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 > 已用你提供的账号完成的实测：`https://steamcommunity.com/profiles/<SteamID64>`
 > → 解析成功 → **61 款游戏、0.55 秒**；「从未玩过」11 款、「玩得很少」16 款、
 > 两者并存 27 款（并集语义正确）。
+
+## 7. 持续集成证据
+
+工作流：`.github/workflows/tests.yml`（Windows / Python 3.12，push 与 PR 触发）。
+
+| 运行 | 提交 | 结果 | 说明 |
+| :--- | :--- | :--- | :--- |
+| [35431875836](https://github.com/collinszheng/SteamGamePicker/actions/runs/35431875836) | `7433a73` | ❌ 失败 | **有价值的一次失败**：运行器时区为 UTC，暴露了两条把时区写死的断言（期望 `09-19 15:04`，实际 `09-19 07:04`） |
+| [35431965371](https://github.com/collinszheng/SteamGamePicker/actions/runs/35431965371) | `7c1a4fa` | ✅ 通过 | 修复后全部步骤 success；**自检步骤也成功**，说明该运行器具备可用 Tk 桌面会话，界面与布局测试确实在其中执行 |
+
+这次失败带来的实际收获（已记入 CHANGELOG「未发布」）：
+
+1. **产品行为修正**：`display_time` 原来直接格式化"写入时的偏移"，把配置目录拷到别的时区
+   （PRD 6.5 明确支持的迁移场景）后"上次更新"会与本地时钟不一致；现统一按当前本地时区换算。
+2. **测试时区无关化**：期望值改为由同一瞬间在本地时区推导，并新增两条与时区无关的不变量测试
+   （ISO 往返保持瞬间不变；同一瞬间的不同偏移写法必须显示为同一个本地时间）。
+3. 验证了测试套件可以在**另一台干净机器**上完整跑通（windows-latest），
+   并且 405 → 407 项用例在两台机器、两个时区下结果一致。
+
+> 注意：这次 CI 通过的是**测试套件**，不等同于 AC-43（在干净 Win10/Win11 上安装并走完主流程），
+> 该项仍列在第 6 节待补测。

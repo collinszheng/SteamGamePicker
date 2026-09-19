@@ -5,6 +5,27 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [未发布]
+
+### 修复
+
+- 缓存时间显示改为按**当前本地时区**换算（此前直接使用写入时的偏移，
+  把配置目录拷到别的时区后"上次更新"会与本地时钟不一致）。
+  该问题由 CI 在 UTC 时区的运行器上首次执行时暴露
+
+### 工程
+
+- 新增 GitHub Actions 工作流（Windows / Python 3.12）：push 与 PR 自动运行全部 407 项测试；
+  运行器具备 Tk 桌面会话时额外执行一次应用自检并归档报告
+- 拆出 `requirements-dev.txt`（运行时依赖 + pytest）
+- 测试断言不再写死时区，并新增两条与时区无关的不变量测试
+
+### 文档
+
+- README 增加安装包下载入口、CI 与许可证徽标
+- 移除文档中的机器专属绝对路径，改为仓库内相对路径
+- 新增本文件
+
 ## [1.0.0] - 2026-09-19
 
 首个发布版本，对应 [Release v1.0.0](https://github.com/collinszheng/SteamGamePicker/releases/tag/v1.0.0)。
