@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "frozen": true,
+  "config_corrupted": false,
+  "has_api_key": true,
+  "snapshot_games": 61,
+  "cache_bytes": 242803,
+  "tk_ok": true,
+  "pillow_ok": true,
+  "requests_ok": true,
+  "truststore_ok": true,
+  "live_api": "skipped(no STEAM_API_KEY)",
+  "startup_ms": 59.6
+}

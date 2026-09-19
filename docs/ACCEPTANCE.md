@@ -148,7 +148,7 @@
 
 | 编号 | 结果 | 证据 |
 | :--- | :--- | :--- |
-| AC-55 Steam 风格骰子图标 | ✅ | `tests/test_icon.py`（21 项）：ICO 必须含 16/24/32/48/64/128/256 七个尺寸且逐帧校验"圆角外全透明"（不带 alpha 会在任务栏上出现黑角）；**按像素采样**验证 Steam 深蓝徽章（四角暗且蓝 > 红）、浅色骰子面、深蓝点数与上沿的 Steam 蓝描边（不是只看源码里写了什么颜色）；小尺寸必须单独渲染——断言 16 像素"单独出图"与"缩小 256 图"逐字节不同，且点数规则为 ≥48 用 5 点、以下用 3 点；**生成过程不得出现 `ImageFont` / `draw.text` / `"抽"` 字面量**（旧图标是中文单字，更名后不应回流）；颜色必须从 `app/ui/theme.py` 取（唯一出处）；打包脚本（spec 与 .iss）必须引用同一个 `app.ico`。**视觉证据**：`docs/evidence/icon-preview.png`（深色/浅色背景真实像素 + 16/24/32/48 放大检查）、`docs/evidence/icon-256.png`；源码运行的窗口图标经**带标题栏截图人工核对**（`tools/capture_ui.py` 第 4 个参数） |
+| AC-55 Steam 风格骰子图标 | ✅ | `tests/test_icon.py`（21 项）：ICO 必须含 16/24/32/48/64/128/256 七个尺寸且逐帧校验"圆角外全透明"（不带 alpha 会在任务栏上出现黑角）；**按像素采样**验证 Steam 深蓝徽章（四角暗且蓝 > 红）、浅色骰子面、深蓝点数与上沿的 Steam 蓝描边（不是只看源码里写了什么颜色）；小尺寸必须单独渲染——断言 16 像素"单独出图"与"缩小 256 图"逐字节不同，且点数规则为 ≥48 用 5 点、以下用 3 点；**生成过程不得出现 `ImageFont` / `draw.text` / `"抽"` 字面量**（旧图标是中文单字，更名后不应回流）；颜色必须从 `app/ui/theme.py` 取（唯一出处）；打包脚本（spec 与 .iss）必须引用同一个 `app.ico`。**链路实测**：用新图标完整跑通 PyInstaller 与 Inno Setup，并把两个产物里的图标抽出来核对，均为骰子图标（见第 4 节）。**视觉证据**：`docs/evidence/icon-preview.png`（深色/浅色背景真实像素 + 16/24/32/48 放大检查）、`docs/evidence/icon-256.png`；源码运行的窗口图标经**带标题栏截图人工核对**（`tools/capture_ui.py` 第 4 个参数） |
 
 ---
 
@@ -197,24 +197,49 @@
 
 ## 4. 产出物与校验值
 
+**已发布**（Release v1.0.0 的安装包，界面为 v1.5 Steam 风格、中文单语、旧名）：
+
 | 产出物 | 路径 | 大小 | SHA256 |
 | :--- | :--- | ---: | :--- |
 | 可执行文件 | `SteamGamePicker\dist\SteamGamePicker.exe` | 19,995,005 | `22A340CA10D9142C5C48DDD9ABE3BF39841B68931575A00EF73D939B6C0B7207` |
 | 安装包 | `SteamGamePicker\dist\SteamGamePicker_Setup.exe` | 21,690,604 | `6A327017696FD52434EB2BA783C1A297E6C7CDEDE43FC38C1AD66A1FD4D26214` |
 
-> 上表为 **v1.5（Steam 风格界面）** 的产物；此前 `1B8CF558…`（v1.0.0）、`29CFC2DD…`（v1.3）、
-> `DD6664DD…`（v1.4）均已被取代，请勿再分发。
-> **v1.6 的改名与中英双语尚未重新打包**（用户选择暂不发版），因此当前 Release 里的安装包
-> 显示名仍是「Steam 游戏抽签器」且只有中文界面；重新打包后需更新本表与校验值。
+> 此前 `1B8CF558…`（v1.0.0）、`29CFC2DD…`（v1.3）、`DD6664DD…`（v1.4）均已被取代，请勿再分发。
+> **v1.6 改名与 v1.7 图标尚未发版**（用户选择暂不发布），所以 Release 里的安装包显示名
+> 仍是「Steam 游戏抽签器」、只有中文界面、还是旧图标。
+
+**本次本地重新打包**（含 v1.6 改名 / 中英双语 / v1.7 骰子图标，尚未发布 —— 仅用于验证打包链路）：
+
+| 产出物 | 大小 | SHA256 |
+| :--- | ---: | :--- |
+| `SteamGamePicker.exe` | 20,051,827 | `DAA3124123414EC7D3F852B7C434BAB5A7A8FFB2C524F658393CEB00689BF0CA` |
+| `SteamGamePicker_Setup.exe` | 21,842,253 | `CFF7DF52A87004A1C9DBA1AC04EC35A99CC7CABF16E4602B82D8D82D056AA7DF` |
+
+> 这次打包同时验证了 AC-55 的图标链路：**PyInstaller 与 Inno Setup 都接受含 7 个尺寸
+> （含 256 像素帧）的新 ICO**，把两个产物里的图标抽出来看，都是新的骰子图标
+> （`SetupIconFile` 也生效）。产物自检见下方 JSON。
 > 界面截图存于 `docs/evidence/ui-steam-theme-loaded.png`（已加载未抽签）、
 > `docs/evidence/ui-steam-theme-result.png`（抽签后含详情卡片）与
-> `docs/evidence/ui-english.png`（v1.6 英文界面）。
+> `docs/evidence/ui-english.png`（英文界面）；三张图均为 **1000×750 物理像素**
+> （本机 125% 缩放，已按 DPI 换算，见第 3 节缺陷 17）。
+> 图标本身见 `docs/evidence/icon-preview.png` 与 `docs/evidence/icon-256.png`。
 
 打包产物自检（`SteamGamePicker.exe --selftest --live --report <文件>`）：
+
+v1.5 产物（联网校验，`docs/evidence/selftest-live-v15.json`）：
 
 ```json
 { "version": "1.0.0", "frozen": true, "tk_ok": true, "pillow_ok": true,
   "requests_ok": true, "truststore_ok": true, "live_api": "ok", "startup_ms": 786.9 }
+```
+
+v1.7 产物（本次打包，`docs/evidence/selftest-packaged-v17.json`；此环境未设置 `STEAM_API_KEY`，
+故联网一项按设计跳过 —— 联网链路已由 v1.5 那次与 `tools/live_check.py` 覆盖）：
+
+```json
+{ "version": "1.0.0", "frozen": true, "tk_ok": true, "pillow_ok": true, "requests_ok": true,
+  "truststore_ok": true, "snapshot_games": 61, "live_api": "skipped(no STEAM_API_KEY)",
+  "startup_ms": 59.6 }
 ```
 
 已安装版本同样通过：`install_exit=0` → `--selftest --live` → `live_api: ok` → `uninstall_exit=0`（配置目录保留）。
