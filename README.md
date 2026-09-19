@@ -110,5 +110,26 @@ SteamGamePicker/
 
 ## 许可
 
-本仓库尚未声明开源许可证。如希望他人自由使用 / 修改 / 分发，请补充 `LICENSE` 文件
-（例如 MIT）；在补充之前，默认保留所有权利。
+本项目采用 [MIT 许可证](LICENSE)：可自由使用、修改、分发，**包括商业用途**，
+只需在副本或实质部分中保留版权声明与许可证原文。
+
+Copyright (c) 2026 collinszheng。
+
+### 第三方依赖
+
+运行时依赖均为宽松许可证，不构成传染：
+
+| 依赖 | 许可证 |
+| :--- | :--- |
+| requests | Apache-2.0 |
+| Pillow | MIT-CMU |
+| truststore（可选） | MIT |
+| urllib3 / charset-normalizer | MIT |
+| certifi | MPL-2.0 |
+| idna | BSD-3-Clause |
+
+打包工具 **PyInstaller** 采用 GPL-2.0-or-later **并附带特别例外**，明确允许用它构建与分发
+非自由程序（含商业程序），因此本项目的构建产物（`SteamGamePicker.exe` / 安装包）
+不受 GPL 约束。安装包由 Inno Setup 生成，其许可证允许自由使用（商用条款见
+[jrsoftware.org](https://jrsoftware.org/)）。
+
