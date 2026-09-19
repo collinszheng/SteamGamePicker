@@ -221,6 +221,9 @@
 > 校验方式：`Get-FileHash <文件> -Algorithm SHA256`，或 `certutil -hashfile <文件> SHA256`。
 > 安装包内含的 exe 与上表第一行是同一个文件（同一份 PyInstaller 产物）。
 > exe 文件属性：产品名 `Steam Game Picker`、版本 `1.0.1.0`、版权 `Copyright (c) 2026 collinszheng. MIT License.`。
+> **发布后回验**：从 `https://github.com/collinszheng/SteamGamePicker/releases/latest/download/SteamGamePicker_Setup.exe`
+> 下载实际产物，大小 21,841,800 字节、SHA256 与上表**完全一致**（同时等于本机 `dist` 里的文件），
+> `releases/latest` 已指向 v1.0.1。
 
 **历史产物（已被 v1.0.1 取代，请勿再分发）**：
 
@@ -323,7 +326,7 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 | [35433584762](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433584762) | `9cb7721` | ✅ 通过 | 图标重做（D13 / AC-55）通过，461 项。图标测试按像素采样判定配色与小尺寸简化，因此在**另一台机器**上重跑同样成立 |
 | [35433711249](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433711249) | `75860d7` | ✅ 通过 | 打包链路实测与产物校验值补记（纯文档） |
 | [35433762566](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433762566) | `f1bc515` | ✅ 通过 | CI 运行记录补记（纯文档） |
-| _v1.0.1 发布提交_ | 见下方“最终校验” | — | 发布提交推送后自动触发 |
+| [35434319033](https://github.com/collinszheng/SteamGamePicker/actions/runs/35434319033) | `9a7b77b` | ✅ 通过 | **v1.0.1 发布提交**：477 项全绿，与本地结果一致 |
 
 这次失败带来的实际收获（已记入 CHANGELOG）：
 
