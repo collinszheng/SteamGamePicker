@@ -1,0 +1,5 @@
+requests>=2.31
+Pillow>=10.0
+# 可选：证书链不被 certifi 信任时（企业网络中间层 / 杀软 HTTPS 扫描），
+# 由 app/trust.py 切换到操作系统原生信任库后重试。未安装时行为不变。
+truststore>=0.9

@@ -1,0 +1,31 @@
+{
+  "response": {
+    "game_count": 4,
+    "games": [
+      {
+        "appid": 570,
+        "name": "Dota 2",
+        "playtime_forever": 12345,
+        "img_icon_url": "icon-570"
+      },
+      {
+        "appid": 413150,
+        "name": "Stardew Valley",
+        "playtime_forever": 0,
+        "img_icon_url": "icon-413150"
+      },
+      {
+        "appid": 730,
+        "name": "Counter-Strike 2",
+        "playtime_forever": 51726,
+        "img_icon_url": ""
+      },
+      {
+        "appid": 0,
+        "name": "",
+        "playtime_forever": 0,
+        "img_icon_url": ""
+      }
+    ]
+  }
+}

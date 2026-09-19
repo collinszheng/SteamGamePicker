@@ -1,0 +1,19 @@
+{
+  "570": {
+    "success": true,
+    "data": {
+      "type": "game",
+      "name": "Dota 2",
+      "steam_appid": 570,
+      "is_free": true,
+      "header_image": "https://cdn.example.invalid/steam/apps/570/header.jpg",
+      "short_description": "每天都在发生史诗般的对决。",
+      "genres": [
+        { "id": "1", "description": "动作" },
+        { "id": "37", "description": "免费开玩" }
+      ],
+      "release_date": { "coming_soon": false, "date": "2013 年 7 月 9 日" },
+      "metacritic": { "score": 90 }
+    }
+  }
+}

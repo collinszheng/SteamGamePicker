@@ -1,0 +1,17 @@
+# 统一换行符，避免 Windows 上 core.autocrlf=true 造成整文件差异
+* text=auto
+
+# 源码与文档用 LF
+*.py   text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+*.ini  text eol=lf
+
+# Inno Setup 脚本沿用 CRLF
+*.iss  text eol=crlf
+
+# 二进制资源
+*.ico  binary
+*.png  binary
+*.jpg  binary
+*.exe  binary

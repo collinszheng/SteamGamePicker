@@ -1,0 +1,26 @@
+{
+  "413150": {
+    "success": true,
+    "data": {
+      "type": "game",
+      "name": "Stardew Valley",
+      "steam_appid": 413150,
+      "is_free": false,
+      "header_image": "https://cdn.example.invalid/steam/apps/413150/header.jpg",
+      "short_description": "你继承了爷爷在星露谷留下的旧农场。",
+      "genres": [
+        { "id": "2", "description": "角色扮演" },
+        { "id": "28", "description": "模拟" }
+      ],
+      "release_date": { "coming_soon": false, "date": "2016 年 2 月 26 日" },
+      "price_overview": {
+        "currency": "CNY",
+        "initial": 4800,
+        "final": 4080,
+        "discount_percent": 15,
+        "initial_formatted": "¥ 48",
+        "final_formatted": "¥ 41"
+      }
+    }
+  }
+}
