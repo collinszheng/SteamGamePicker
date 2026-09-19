@@ -11,6 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from app.i18n import t
+
 # ---------------------------------------------------------------------------
 # 提示级别：由 app.ui.theme 映射为具体颜色（PRD 5.7 的 绿 / 黄 / 红 / 灰）
 # ---------------------------------------------------------------------------
@@ -51,54 +53,40 @@ class Message:
     actions: tuple[str, ...] = ()
 
 
-_ERRORS: dict[Err, Message] = {
-    Err.NO_KEY: Message("请先在设置中填写 Steam API Key", LEVEL_ERROR, (ACTION_SETTINGS,)),
-    Err.EMPTY_INPUT: Message("请先输入 Steam ID 或资料地址", LEVEL_ERROR),
-    Err.BAD_FORMAT: Message(
-        "无法解析该资料地址，请检查自定义名称或 API Key", LEVEL_ERROR, (ACTION_SETTINGS,)
-    ),
-    Err.VANITY_NOT_FOUND: Message(
-        "无法解析该资料地址，请检查自定义名称或 API Key", LEVEL_ERROR, (ACTION_SETTINGS,)
-    ),
-    Err.NETWORK: Message("网络连接失败，请检查网络后重试", LEVEL_ERROR, (ACTION_RETRY,)),
-    Err.PRIVATE_PROFILE: Message(
-        "无法读取游戏库，请将 Steam 个人资料和游戏详情设为公开", LEVEL_ERROR, (ACTION_RETRY,)
-    ),
-    Err.EMPTY_LIBRARY: Message(
-        "未找到任何游戏，请确认已拥有游戏且资料已公开", LEVEL_ERROR, (ACTION_RETRY,)
-    ),
-    Err.INVALID_KEY: Message("API Key 无效或已停用，请在设置中更新", LEVEL_ERROR, (ACTION_SETTINGS,)),
-    Err.RATE_LIMIT: Message("请求太频繁，请稍等一分钟再试", LEVEL_WARN, (ACTION_RETRY,)),
-    Err.DETAIL_FAILED: Message("无法获取详情（可稍后重试）", LEVEL_MUTED, (ACTION_RETRY,)),
-    Err.TLS_TRUST: Message(
-        "无法验证 Steam 服务器证书（可能被网络中间件拦截），请检查系统时间与网络代理设置",
-        LEVEL_ERROR,
-        (ACTION_RETRY,),
-    ),
+_ERRORS: dict[Err, tuple[str, tuple[str, ...]]] = {
+    Err.NO_KEY: (LEVEL_ERROR, (ACTION_SETTINGS,)),
+    Err.EMPTY_INPUT: (LEVEL_ERROR, ()),
+    Err.BAD_FORMAT: (LEVEL_ERROR, (ACTION_SETTINGS,)),
+    Err.VANITY_NOT_FOUND: (LEVEL_ERROR, (ACTION_SETTINGS,)),
+    Err.NETWORK: (LEVEL_ERROR, (ACTION_RETRY,)),
+    Err.PRIVATE_PROFILE: (LEVEL_ERROR, (ACTION_RETRY,)),
+    Err.EMPTY_LIBRARY: (LEVEL_ERROR, (ACTION_RETRY,)),
+    Err.INVALID_KEY: (LEVEL_ERROR, (ACTION_SETTINGS,)),
+    Err.RATE_LIMIT: (LEVEL_WARN, (ACTION_RETRY,)),
+    Err.DETAIL_FAILED: (LEVEL_MUTED, (ACTION_RETRY,)),
+    Err.TLS_TRUST: (LEVEL_ERROR, (ACTION_RETRY,)),
 }
 
 
 def message(err: Err) -> Message:
-    """取得错误对应的状态行提示。"""
-    try:
-        return _ERRORS[err]
-    except KeyError:  # pragma: no cover - 防御性分支，枚举已全覆盖
-        return Message("发生未知错误，请重试", LEVEL_ERROR, (ACTION_RETRY,))
+    """取得错误对应的状态行提示（文案按当前语言实时取，语言切换后立即生效）。"""
+    level, actions = _ERRORS.get(err, (LEVEL_ERROR, (ACTION_RETRY,)))
+    return Message(t(f"err.{err.value}"), level, actions)
 
 
 # ---------------------------------------------------------------------------
-# 非错误类的状态文案
+# 非错误类的状态文案（文案表在 app/i18n.py）
 # ---------------------------------------------------------------------------
-STATUS_TEMPLATES: dict[str, str] = {
-    "saved": "设置已保存",
-    "loading": "正在读取游戏库…",
-    "detail_loading": "正在获取详情…",
-    "loaded": "已加载 {total} 款 · {available} 款参与抽签 · 上次更新 {updated}",
-    "offline": "当前离线，正在使用 {updated} 缓存的数据",
-    "pool_empty": "当前范围内没有可抽签的游戏，请调整范围",
-    "config_corrupt": "配置文件已损坏，已备份并重置为默认设置",
-    "preset_applied": "已按『{preset}』重设选择，可继续手动调整",
-    "idle": "输入 Steam ID 或资料地址后点击「加载游戏库」",
+_STATUS_KEYS: dict[str, str] = {
+    "saved": "status.saved",
+    "loading": "status.loading",
+    "detail_loading": "status.detail_loading",
+    "loaded": "status.loaded",
+    "offline": "status.offline",
+    "pool_empty": "status.pool_empty",
+    "config_corrupt": "status.config_corrupt",
+    "preset_applied": "status.preset_applied",
+    "idle": "status.idle",
 }
 
 _STATUS_LEVELS: dict[str, str] = {
@@ -121,11 +109,11 @@ _STATUS_ACTIONS: dict[str, tuple[str, ...]] = {
 
 def status(key: str, **kwargs: object) -> Message:
     """按 key 取一条状态提示，支持 ``{name}`` 占位符。"""
-    template = STATUS_TEMPLATES.get(key)
-    if template is None:  # pragma: no cover - 防御性分支
+    translation_key = _STATUS_KEYS.get(key)
+    if translation_key is None:  # pragma: no cover - 防御性分支
         return Message(str(key), LEVEL_MUTED)
     return Message(
-        template.format(**kwargs),
+        t(translation_key, **kwargs),
         _STATUS_LEVELS.get(key, LEVEL_MUTED),
         _STATUS_ACTIONS.get(key, ()),
     )

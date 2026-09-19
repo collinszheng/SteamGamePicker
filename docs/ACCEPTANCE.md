@@ -2,19 +2,19 @@
 
 | 项目 | 内容 |
 | :--- | :--- |
-| 依据文档 | [`PRD.md`](PRD.md) v1.5、[`DEV_PLAN.md`](DEV_PLAN.md) v1.0 |
+| 依据文档 | [`PRD.md`](PRD.md) v1.6、[`DEV_PLAN.md`](DEV_PLAN.md) v1.0 |
 | 代码版本 | v1.0.0（本仓库） |
 | 验收日期 | 2026-09-19 |
 | 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3（Inno 未随附中文语言包） |
-| 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格 |
-| 自动化测试 | **407 项全部通过**（`python -m pytest`）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
+| 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格；v1.6（D11/D12）应用更名为 Steam Game Picker + 中英双语界面与英文 README |
+| 自动化测试 | **438 项全部通过**（`python -m pytest`）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
 | 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（用用户提供的 SteamID64 与密钥，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/<SteamID64>` → **61 款游戏，加载 0.55 秒**；账号矩阵中"非公开 / 空库 / 无效 Key"三项待提供对应账号 |
 
 ## 0. 结论摘要
 
 | 状态 | 数量 | 说明 |
 | :--- | :--- | :--- |
-| ✅ 通过 | 46 | 有自动化测试或实测证据 |
+| ✅ 通过 | 48 | 有自动化测试或实测证据 |
 | ⚠️ 部分通过 | 3 | AC-36（控件重叠需人工目视）、AC-37（真实按键事件）、AC-43 之外的设备相关项见下行 |
 | ⏸ 待凭据 / 待设备 | 3 | AC-06 / AC-07 / AC-08 中需要"非公开 / 空库 / 无效 Key"的场景；AC-43 的干净 Win10 机器 |
 | ❌ 未通过 | 0 | — |
@@ -137,6 +137,13 @@
 | AC-51 配色与控件样式 | ✅ | `tests/test_ui_theme.py`（33 项）：官方色板锁定（`#171a21/#1b2838/#2a475e/#66c0f4/#c6d4df`）、主按钮绿 `#4c6b22`、中签绿 `#a4d007`；`test_apply_theme_installs_styles` 验证 `ttk` 切到 `clam` 且样式实际生效；16 组前景/背景组合按 WCAG AA ≥ 4.5:1 参数化校验；`test_legacy_light_theme_colors_are_gone` 防止旧浅色配色回流；勾选框指示器用 clam 真正支持的 `indicatorbackground/indicatorforeground`（`test_clam_supports_the_options_we_configure` 防止再写错选项名） |
 | AC-52 布局与自适应 | ✅ | `test_no_widget_overflows_the_window`（800×600 与 640×480 下逐控件用 Tk 几何数据判定无越界，并断言受检控件 ≥ 20 个，避免空测试）；`test_short_window_auto_collapses_pool_panel`（窗口 < 520 高自动收起且不改写用户配置）；`test_cover_placeholder_is_hidden_until_a_result`；`test_bulk_button_labels_are_on_their_own_row`（搜索框与批量按钮分行，避免 800px 下按钮被裁）；`test_zone3_placeholder_uses_small_font`（26pt 提示会截断，改用 12pt） |
 
+### 9.13 v1.6 改名与中英双语（D11 / D12）
+
+| 编号 | 结果 | 证据 |
+| :--- | :--- | :--- |
+| AC-53 中英双语界面 | ✅ | `tests/test_i18n.py`（19 项）：中英键集合完全一致（`test_translation_keys_are_in_sync`）、无空译文、占位符一致、缺失键渲染为 `⟦key⟧` 而不是抛异常、非法语言值回落中文；**英文界面不得残留中文**（`test_english_main_window_has_no_cjk` / `test_english_dialogs_have_no_cjk`，逐控件扫描文本，白名单仅放语言选择器里的「中文」自名）；中文文案与改版前**逐字节一致**（`test_chinese_strings_are_unchanged`，保证既有 407 项断言仍是回归网）；切换语言后已加载的库 / 勾选 / 搜索词 / 中签结果 / 列表展开态**全部保留**（`test_language_switch_preserves_loaded_state`）；设置保存后立即生效并可跨重启持久化（`test_settings_dialog_persists_language`、`test_language_survives_restart`）；英文下状态行、空池提示、缓存时间与详情字段均为英文（`test_english_status_messages`、`test_english_cache_and_details`）。**界面证据**：`docs/evidence/ui-english.png`（英文界面截屏） |
+| AC-54 双语 README | ✅ | `tests/test_docs.py`（12 项）：`README.md`（中文，GitHub 默认渲染）与 `README.en.md`（英文）**互相链接**且切换链接位于正文前 12 行内；两版都必须包含安装包下载入口（指向 `releases/latest`）；`README.md` 必须为中文而 `README.en.md` 必须为英文（按 CJK 字符占比判定）；6 个 markdown 文件的全部**相对链接可达**（`test_relative_links_resolve`，防止改名后链接失效）；两版功能清单条目数一致（防止只更新单边） |
+
 ---
 
 ## 2. 与 PRD 的实现偏差（全部为有意为之，已记录）
@@ -151,7 +158,9 @@
 | 6 | 缓存清理严格守住 200 MB 上限：极端情况下（上限小到连快照都装不下）最新快照也会被清理 | PRD 6.4 要求"缓存总量上限"；最新快照天然是 mtime 最新的文件，正常规模下必然留到最后 |
 | 7 | 安装向导界面为英文 | Inno Setup 6.7.3 官方未随附简体中文语言包（`packaging/ChineseSimplified.isl` 若存在则脚本会自动切换为中文）；应用本身界面全中文，不受影响 |
 | 8 | exe 未嵌入版本资源、未做代码签名 | PRD 未强制要求；代码签名需购买证书（PRD 风险表已列，SmartScreen 可能提示） |
-| 9 | 额外新增文件 | `app/cancellation.py`、`app/state.py`、`app/images.py`、`app/ui/animator.py`、`tools/`（这是把 PRD 可维护性要求与验收要求落地的必要补充，行为不超出 PRD） |
+| 9 | 额外新增文件 | `app/cancellation.py`、`app/state.py`、`app/images.py`、`app/i18n.py`、`app/ui/animator.py`、`tools/`（这是把 PRD 可维护性要求与验收要求落地的必要补充，行为不超出 PRD） |
+| 10 | 语言选择器里的语言名用**本族写法**呈现（`中文` / `English`），不随界面语言翻译 | 这是语言选择器的通行做法：界面已经是英文时若把「中文」显示成 `Chinese`，看不懂英文的用户反而找不到回中文的入口。因此该项是唯一允许在英文界面出现 CJK 的地方，并在测试中显式白名单化（`test_english_main_window_has_no_cjk`） |
+| 11 | 界面语言是**进程级全局状态**而不是逐控件传入 | 与 Tk 的控件树构建方式匹配（`rebuild_ui` 按语言整体重建），避免几百处构造参数透传；纯逻辑模块（`steamid`/`pool`/`models`/`config`/`cache`）不感知语言，仅经由 `t()` 取文案，仍然可无界面单测 |
 
 ---
 
@@ -172,6 +181,9 @@
 | 11 | **【用户要求改进】** 「从未玩过」与「玩得很少」原先互斥，无法同时筛选 | 改为可并存的复选（并集）；「全部参与」保持单选并点击即清空两个复选；两个都取消时回落为全部参与；手动改动后切「自定义」（D9 / AC-49） |
 | 12 | **【用户要求改版】** 原浅色界面风格不够好，希望贴近 Steam 官方观感 | 整体改为 Steam 官方深色配色 + 商店绿色主按钮（D10 / AC-51）；`ttk` 切到 `clam` 才能自绘深色控件；列表加斑马纹与被排除行灰显、区域卡片化、顶栏加 Steam 蓝强调线 |
 | 13 | 改版过程中用截屏自查发现三处真实问题：占位文案沿用 26pt 大字被窗口截断、搜索框与三个长文案批量按钮同行导致横向溢出、抽签后封面位挤掉列表高度 | 占位/提示改用 12pt；搜索框与批量按钮分行；未抽签时不占封面位 + 封面宽度比例 0.42→0.30；新增"逐控件越界检测"测试（AC-52）作为回归防线 |
+| 14 | **【用户要求改名】** 原名「Steam 游戏抽签器」不好听 | 显示名统一改为 **Steam Game Picker**（窗口标题 / 顶栏 / 关于窗 / 安装包与快捷方式）；**配置目录与 exe 名仍为 `SteamGamePicker`**，老用户配置零迁移（D11） |
+| 15 | **【用户要求】** 需要英文界面与英文 README | 文案抽到 `app/i18n.py`（含错误、状态、按钮、表头、设置、关于共 ~90 个键），设置窗口新增语言选项（默认中文，保存即生效并持久化）；新增 `README.en.md` 与中文版互相链接；补 19 项 i18n 测试（含"英文界面不得残留中文"）与 12 项文档测试（AC-53 / AC-54） |
+| 16 | 国际化的首版把「英文界面含 CJK」判定写得太宽，误报语言选择器里的「中文」 | 白名单化 `LANGUAGE_NAMES` 的取值本身，其余任何控件文本含 CJK 即失败（保持严格，避免以后漏译被放过） |
 
 ---
 
@@ -184,8 +196,9 @@
 
 > 上表为 **v1.5（Steam 风格界面）** 的产物；此前 `1B8CF558…`（v1.0.0）、`29CFC2DD…`（v1.3）、
 > `DD6664DD…`（v1.4）均已被取代，请勿再分发。
-> 界面截图存于 `docs/evidence/ui-steam-theme-loaded.png`（已加载未抽签）与
-> `docs/evidence/ui-steam-theme-result.png`（抽签后含详情卡片）。
+> 界面截图存于 `docs/evidence/ui-steam-theme-loaded.png`（已加载未抽签）、
+> `docs/evidence/ui-steam-theme-result.png`（抽签后含详情卡片）与
+> `docs/evidence/ui-english.png`（v1.6 英文界面）。
 
 打包产物自检（`SteamGamePicker.exe --selftest --live --report <文件>`）：
 
@@ -203,7 +216,7 @@
 ## 5. 复现命令
 
 ```powershell
-# 全量测试（407 项）
+# 全量测试（438 项）
 cd SteamGamePicker
 python -m pytest
 

@@ -26,6 +26,16 @@ for _var, _parts in (("TCL_LIBRARY", ("tcl", "tcl8.6")), ("TK_LIBRARY", ("tcl", 
         os.environ.setdefault(_var, str(_candidate))
 
 
+@pytest.fixture(autouse=True)
+def reset_language() -> Iterator[None]:
+    """界面语言是进程级全局状态：每个测试前复位为默认语言（中文），保证互不干扰。"""
+    from app.i18n import DEFAULT_LANGUAGE, set_language
+
+    set_language(DEFAULT_LANGUAGE)
+    yield
+    set_language(DEFAULT_LANGUAGE)
+
+
 @pytest.fixture(scope="session")
 def tk_root() -> Iterator[object]:
     import tkinter as tk

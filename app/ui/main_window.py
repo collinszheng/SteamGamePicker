@@ -39,6 +39,7 @@ from app.errors import (
     status,
 )
 from app.images import load_photo_image, load_photo_image_from_file
+from app.i18n import get_language, set_language, t
 from app.logging_setup import get_logger
 from app.models import (
     PLACEHOLDER,
@@ -79,15 +80,17 @@ from app.ui.settings_dialog import AboutDialog, SettingsDialog
 SEARCH_DEBOUNCE_MS = 300
 SAVE_DEBOUNCE_MS = 1000
 
-ACTION_LABELS = {
-    ACTION_RETRY: "重试",
-    ACTION_SETTINGS: "去设置",
-    ACTION_CANCEL: "取消",
-    ACTION_EXPAND: "展开范围设置",
+ACTION_LABEL_KEYS = {
+    ACTION_RETRY: "action.retry",
+    ACTION_SETTINGS: "action.settings",
+    ACTION_CANCEL: "action.cancel",
+    ACTION_EXPAND: "action.expand",
 }
 
-PLACEHOLDER_ROLLING = "点下面的按钮开始抽签"
-PLACEHOLDER_DETAILS = "抽签后这里会显示游戏详情"
+
+def action_label(action: str) -> str:
+    """状态行附加按钮的文案（按当前语言）。"""
+    return t(ACTION_LABEL_KEYS.get(action, action))
 
 
 class MainWindow:
@@ -107,6 +110,9 @@ class MainWindow:
         self.root = root
         self.store = store
         self.config = config
+        # 语言是进程级全局状态：界面按当前语言构建，切换时通过 rebuild_ui() 重建
+        set_language(config.language)
+        self._language_at_build = get_language()
         self.cache = cache or GameCache(store, ttl_days=config.details_cache_ttl_days)
         self.client = client
         self.worker = worker
@@ -133,6 +139,7 @@ class MainWindow:
         self._detail_appid: int | None = None
         self._bounce_job: str | None = None
         self.cover_photo: Any = None
+        self._last_details: GameDetails | None = None
         self._animator = DrawAnimator(root)
         self._settings_dialog: SettingsDialog | None = None
         self._about_dialog: AboutDialog | None = None
@@ -162,6 +169,8 @@ class MainWindow:
         outer.columnconfigure(0, weight=1)
         outer.rowconfigure(1, weight=1)  # 只有区2 吸收多余高度
         self.outer = outer
+        #: _build 创建的全部顶层容器（重建界面时只销毁它们，避免误伤设置窗等对话框）
+        self._root_frames: list[tk.Misc] = [self.header, self.accent_bar, outer]
 
         self._build_identity(outer)
         self._build_pool(outer)
@@ -181,15 +190,18 @@ class MainWindow:
 
         ttk.Label(frame, text=APP_NAME, style=theme.STYLE_TITLE_LABEL).grid(row=0, column=0, sticky="w")
         self.about_button = ttk.Button(
-            frame, text="关于", style=theme.STYLE_HEADER_BUTTON, command=self.on_about
+            frame, text=t("ui.about"), style=theme.STYLE_HEADER_BUTTON, command=self.on_about
         )
         self.about_button.grid(row=0, column=1, padx=(theme.PAD_TIGHT, 0))
         self.settings_button = ttk.Button(
-            frame, text="设置", style=theme.STYLE_HEADER_BUTTON, command=self.on_settings
+            frame, text=t("ui.settings"), style=theme.STYLE_HEADER_BUTTON, command=self.on_settings
         )
         self.settings_button.grid(row=0, column=2, padx=(theme.PAD_TIGHT, 0))
 
-        ttk.Frame(parent, style=theme.STYLE_ACCENT_FRAME, height=theme.HEADER_BAR_HEIGHT).pack(fill="x")
+        self.accent_bar = ttk.Frame(
+            parent, style=theme.STYLE_ACCENT_FRAME, height=theme.HEADER_BAR_HEIGHT
+        )
+        self.accent_bar.pack(fill="x")
         self.header = bar
 
     # 区1 身份 ---------------------------------------------------------------
@@ -206,11 +218,11 @@ class MainWindow:
         self.identity_entry.bind("<Return>", lambda _event: self.start_load())
 
         self.load_button = ttk.Button(
-            frame, text="加载游戏库", style=theme.STYLE_BUTTON, command=self.on_load_button
+            frame, text=t("ui.load_library"), style=theme.STYLE_BUTTON, command=self.on_load_button
         )
         self.load_button.grid(row=0, column=1, padx=(theme.PAD_INNER, 0))
         self.refresh_button = ttk.Button(
-            frame, text="刷新", style=theme.STYLE_BUTTON, command=lambda: self.start_load(refresh=True)
+            frame, text=t("ui.refresh"), style=theme.STYLE_BUTTON, command=lambda: self.start_load(refresh=True)
         )
         self.refresh_button.grid(row=0, column=2, padx=(theme.PAD_TIGHT, 0))
 
@@ -254,7 +266,7 @@ class MainWindow:
 
         preset_row = ttk.Frame(body, style=theme.STYLE_CARD_FRAME)
         preset_row.grid(row=0, column=0, sticky="ew")
-        ttk.Label(preset_row, text="范围", style=theme.STYLE_CARD_MUTED_LABEL).grid(
+        ttk.Label(preset_row, text=t("ui.range_label"), style=theme.STYLE_CARD_MUTED_LABEL).grid(
             row=0, column=0, padx=(0, theme.PAD_TIGHT)
         )
         # 「全部参与」是单选项，点击即取消另外两个快捷筛选；
@@ -351,8 +363,8 @@ class MainWindow:
             style=theme.STYLE_TREE,
         )
         self.tree.heading("check", text="")
-        self.tree.heading("name", text="游戏名", command=lambda: self.sort_by(SORT_NAME))
-        self.tree.heading("playtime", text="游玩时间", command=lambda: self.sort_by(SORT_PLAYTIME))
+        self.tree.heading("name", text=t("ui.column_name"), command=lambda: self.sort_by(SORT_NAME))
+        self.tree.heading("playtime", text=t("ui.column_playtime"), command=lambda: self.sort_by(SORT_PLAYTIME))
         self.tree.column("check", width=34, minwidth=34, stretch=False, anchor="center")
         self.tree.column("name", width=380, minwidth=160, stretch=True)
         self.tree.column("playtime", width=110, minwidth=90, stretch=False, anchor="e")
@@ -382,7 +394,7 @@ class MainWindow:
 
         self.rolling_label = ttk.Label(
             frame,
-            text=PLACEHOLDER_ROLLING,
+            text=t("ui.rolling_placeholder"),
             style=theme.STYLE_LABEL,
             font=theme.FONT_ROLLING,
             foreground=theme.COLOR_ROLLING,
@@ -393,7 +405,7 @@ class MainWindow:
         # 主行动按钮用 Steam 商店的绿色 CTA
         self.draw_button = ttk.Button(
             frame,
-            text="抽签",
+            text=t("ui.draw"),
             style=theme.STYLE_ACCENT_BUTTON,
             command=self.on_draw,
             width=theme.DRAW_BUTTON_WIDTH,
@@ -434,7 +446,7 @@ class MainWindow:
         self.detail_name.grid(row=0, column=1, sticky="ew", padx=(theme.PAD_INNER, 0))
         self.detail_description = ttk.Label(
             card,
-            text=PLACEHOLDER_DETAILS,
+            text=t("ui.details_placeholder"),
             style=theme.STYLE_CARD_MUTED_LABEL,
             foreground=theme.COLOR_MUTED,
             anchor="w",
@@ -461,7 +473,7 @@ class MainWindow:
         )
         self.detail_extra.grid(row=3, column=1, sticky="ew", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0))
         self.detail_retry_button = ttk.Button(
-            card, text="重试", style=theme.STYLE_BUTTON, command=self.retry_details, width=10
+            card, text=t("ui.retry"), style=theme.STYLE_BUTTON, command=self.retry_details, width=10
         )
         self.detail_retry_button.grid(
             row=4, column=1, sticky="w", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0)
@@ -492,11 +504,15 @@ class MainWindow:
 
         self._set_enabled(self.identity_entry, controls.identity_enabled)
         if controls.load_mode == LOAD_CANCEL:
-            self.load_button.configure(text="取消", command=self.cancel_load, state="normal")
+            self.load_button.configure(text=t("ui.cancel"), command=self.cancel_load, state="normal")
         elif controls.load_mode == LOAD_DISABLED:
-            self.load_button.configure(text="加载游戏库", command=self.on_load_button, state="disabled")
+            self.load_button.configure(
+                text=t("ui.load_library"), command=self.on_load_button, state="disabled"
+            )
         else:
-            self.load_button.configure(text="加载游戏库", command=self.on_load_button, state="normal")
+            self.load_button.configure(
+                text=t("ui.load_library"), command=self.on_load_button, state="normal"
+            )
         self._set_enabled(self.refresh_button, controls.load_mode == LOAD_ENABLED)
         self._set_enabled(self.pool_toggle_button, controls.pool_enabled or state is AppState.EMPTY_POOL)
         self._set_tree_enabled(controls.pool_enabled)
@@ -539,7 +555,7 @@ class MainWindow:
         for index, action in enumerate(msg.actions):
             button = ttk.Button(
                 self.status_actions,
-                text=ACTION_LABELS.get(action, action),
+                text=action_label(action),
                 command=lambda a=action: self.on_status_action(a),
                 width=10,
                 style=theme.STYLE_BUTTON,
@@ -585,7 +601,7 @@ class MainWindow:
             self.set_status(self.loaded_message())
 
     def snapshot_display(self) -> str:
-        return display_time(self.snapshot_updated) if self.snapshot_updated else "未知时间"
+        return display_time(self.snapshot_updated) if self.snapshot_updated else t("ui.unknown_time")
 
     def loaded_message(self) -> Message:
         total, pool_size = summary(self.games, self.excluded)
@@ -628,7 +644,13 @@ class MainWindow:
         arrow = "▾" if self.pool_panel_expanded else "▸"
         total, pool_size = summary(self.games, self.excluded)
         self.pool_toggle_button.configure(
-            text=f"{arrow} 展开范围设置（当前：{range_label(self.range_state)} · {pool_size}/{total}）"
+            text=t(
+                "ui.pool_header",
+                arrow=arrow,
+                preset=range_label(self.range_state),
+                available=pool_size,
+                total=total,
+            )
         )
 
     def on_all_clicked(self) -> None:
@@ -717,8 +739,7 @@ class MainWindow:
         self._after_manual_change()
 
     def bulk_label(self, mode: str) -> str:
-        mapping = {"all": "全选", "none": "全不选", "invert": "反选"}
-        return f"{mapping.get(mode, mode)}（当前 {len(self.filtered)} 条）"
+        return t(f"ui.bulk_{mode}", count=len(self.filtered))
 
     # 搜索 -------------------------------------------------------------------
     def _on_search_changed(self, *_args: object) -> None:
@@ -791,7 +812,7 @@ class MainWindow:
         for mode, button in self.bulk_buttons.items():
             button.configure(text=self.bulk_label(mode))
         total, pool_size = summary(self.games, self.excluded)
-        self.selected_label.configure(text=f"已选中 {pool_size} 款")
+        self.selected_label.configure(text=t("ui.selected_count", count=pool_size))
         self._refresh_pool_header()
 
     def _on_tree_click(self, event: tk.Event) -> None:
@@ -957,7 +978,46 @@ class MainWindow:
             redactor.add_secret(self.config.api_key)
         self.cache.ttl_days = max(1, int(self.config.details_cache_ttl_days))
         self.last_error = None
+
+        if set_language(self.config.language) != self._language_at_build:
+            # 语言变了：按新语言重建界面（保留库、勾选与结果）
+            self.rebuild_ui()
         self.set_status(status("saved"))
+        self.refresh_state()
+
+    # ================================================================= 语言
+    def rebuild_ui(self) -> None:
+        """按当前语言重建界面。
+
+        只销毁 _build 创建的三个顶层容器，因此设置窗等对话框不受影响；
+        已加载的游戏库、勾选状态、搜索词与抽签结果都会被保留。
+        """
+        self._animator.cancel()
+        if self._bounce_job is not None:
+            try:
+                self.root.after_cancel(self._bounce_job)
+            except Exception:  # pragma: no cover
+                pass
+            self._bounce_job = None
+
+        query = self.search_var.get()
+        expanded = self.pool_panel_expanded
+        details = self._last_details
+        photo = self.cover_photo
+
+        for frame in list(self._root_frames):
+            frame.destroy()
+
+        self._build()
+        self._language_at_build = get_language()
+        self.pool_panel_expanded = expanded
+        self._apply_pool_panel_visibility()
+        self.search_var.set(query)
+        self.apply_search()
+        if self.winner is not None:
+            self._on_anim_frame(self.winner.name, True)
+        if details is not None:
+            self.render_details(details, photo)
         self.refresh_state()
 
     def on_about(self) -> None:
@@ -1165,6 +1225,7 @@ class MainWindow:
         self.refresh_state()
 
     def render_details(self, details: GameDetails, photo: Any | None = None) -> None:
+        self._last_details = details
         fallback_name = self.winner.name if self.winner else ""
         self.detail_name.configure(text=details.name or fallback_name)
         self.detail_description.configure(
@@ -1191,7 +1252,7 @@ class MainWindow:
     def _set_cover(self, photo: Any | None) -> None:
         if photo is None:
             self.cover_photo = None
-            self.cover_label.configure(image="", text="（无封面）", foreground=theme.COLOR_MUTED)
+            self.cover_label.configure(image="", text=t("ui.no_cover"), foreground=theme.COLOR_MUTED)
         else:
             self.cover_photo = photo  # 必须持有引用，否则被垃圾回收后图片消失
             self.cover_label.configure(image=photo, text="")

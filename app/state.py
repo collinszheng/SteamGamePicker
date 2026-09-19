@@ -11,14 +11,21 @@ from enum import Enum
 
 from app.errors import LEVEL_MUTED, Message, message, status
 from app.errors import Err
+from app.i18n import t
 
 LOAD_ENABLED = "enabled"
 LOAD_CANCEL = "cancel"
 LOAD_DISABLED = "disabled"
 
-DRAW_IDLE_LABEL = "抽签"
-DRAW_AGAIN_LABEL = "再抽一次"
-DRAW_BUSY_LABEL = "抽签中…"
+
+def draw_label(has_result: bool = False) -> str:
+    """主按钮文案：抽签 / 再抽一次（按当前语言）。"""
+    return t("ui.draw_again") if has_result else t("ui.draw")
+
+
+def drawing_label() -> str:
+    """抽签进行中的按钮文案。"""
+    return t("ui.drawing")
 
 
 class AppState(Enum):
@@ -46,12 +53,14 @@ class Controls:
     status_hint: Message | None = None  # None 表示"保留状态行现有文案"
 
 
-_PLACEHOLDER = Message(status("idle").text, LEVEL_MUTED)
+def _placeholder() -> Message:
+    """没有结果时的灰色占位提示（延迟取文案，语言切换后立即生效）。"""
+    return Message(status("idle").text, LEVEL_MUTED)
 
 
 def controls_for(state: AppState, *, has_result: bool = False) -> Controls:
     """状态 → 控件启停（严格对齐 PRD 11.1 的表格）。"""
-    idle_label = DRAW_AGAIN_LABEL if has_result else DRAW_IDLE_LABEL
+    idle_label = draw_label(has_result)
 
     if state is AppState.NO_KEY:
         return Controls(
@@ -63,24 +72,24 @@ def controls_for(state: AppState, *, has_result: bool = False) -> Controls:
     if state is AppState.READY:
         # 已经抽出结果时不得用占位文案覆盖中签游戏名（PRD 11.1 S3："灰色占位**或上次结果**"）
         return Controls(
-            True, LOAD_ENABLED, True, True, idle_label, None if has_result else _PLACEHOLDER
+            True, LOAD_ENABLED, True, True, idle_label, None if has_result else _placeholder()
         )
     if state is AppState.EMPTY_POOL:
         empty = status("pool_empty")
         return Controls(True, LOAD_ENABLED, True, False, idle_label, empty, empty)
     if state is AppState.DRAWING:
-        return Controls(False, LOAD_DISABLED, False, False, DRAW_BUSY_LABEL, None)
+        return Controls(False, LOAD_DISABLED, False, False, drawing_label(), None)
     if state is AppState.DETAIL_LOADING:
         return Controls(True, LOAD_ENABLED, True, True, idle_label, None)
     if state is AppState.OFFLINE:
         return Controls(
-            True, LOAD_ENABLED, True, True, idle_label, None if has_result else _PLACEHOLDER
+            True, LOAD_ENABLED, True, True, idle_label, None if has_result else _placeholder()
         )
     if state is AppState.ERROR:
         return Controls(True, LOAD_ENABLED, False, False, idle_label, None)
     # AppState.IDLE
     return Controls(
-        True, LOAD_ENABLED, False, False, idle_label, None if has_result else _PLACEHOLDER
+        True, LOAD_ENABLED, False, False, idle_label, None if has_result else _placeholder()
     )
 
 

@@ -21,18 +21,11 @@ from app.config import (
     SORT_NAME,
     SORT_PLAYTIME,
 )
+from app.i18n import t
 from app.models import Game
 
 #: 界面上的预设顺序（不含"自定义"，它由系统自动切换）
 PRESET_ORDER: tuple[str, ...] = (PRESET_ALL, PRESET_NEVER, PRESET_LOW)
-
-PRESET_LABELS: dict[str, str] = {
-    PRESET_ALL: "全部参与",
-    PRESET_NEVER: "从未玩过",
-    PRESET_LOW: "玩得很少",
-    PRESET_NEVER_LOW: "从未玩过 + 玩得很少",
-    PRESET_CUSTOM: "自定义",
-}
 
 #: 范围模式：全部参与 / 快捷筛选 / 自定义
 RANGE_ALL = "all"
@@ -50,7 +43,10 @@ class RangeState:
 
 
 def preset_label(preset: str) -> str:
-    return PRESET_LABELS.get(preset, PRESET_LABELS[PRESET_CUSTOM])
+    """预设名称（按当前语言实时取）。"""
+    if preset in (PRESET_ALL, PRESET_NEVER, PRESET_LOW, PRESET_NEVER_LOW, PRESET_CUSTOM):
+        return t(f"preset.{preset}")
+    return t("preset.custom")
 
 
 def matches_preset(game: Game, preset: str, threshold_minutes: int) -> bool:
@@ -161,15 +157,15 @@ def classify_range(
 def range_label(state: RangeState) -> str:
     """范围的人类可读名称：全部参与 / 从未玩过 / 玩得很少 / 两者组合 / 自定义。"""
     if state.mode == RANGE_ALL:
-        return PRESET_LABELS[PRESET_ALL]
+        return t("preset.all")
     if state.mode == RANGE_CUSTOM:
-        return PRESET_LABELS[PRESET_CUSTOM]
+        return t("preset.custom")
     names = []
     if state.never:
-        names.append(PRESET_LABELS[PRESET_NEVER])
+        names.append(t("preset.never_played"))
     if state.low:
-        names.append(PRESET_LABELS[PRESET_LOW])
-    return " + ".join(names) if names else PRESET_LABELS[PRESET_ALL]
+        names.append(t("preset.low_playtime"))
+    return " + ".join(names) if names else t("preset.all")
 
 
 def preset_key(state: RangeState) -> str:

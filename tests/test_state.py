@@ -6,14 +6,13 @@ import pytest
 
 from app.errors import ACTION_EXPAND, ACTION_SETTINGS
 from app.state import (
-    DRAW_AGAIN_LABEL,
-    DRAW_BUSY_LABEL,
-    DRAW_IDLE_LABEL,
     LOAD_CANCEL,
     LOAD_DISABLED,
     LOAD_ENABLED,
     AppState,
     controls_for,
+    draw_label,
+    drawing_label,
     infer_state,
 )
 
@@ -64,12 +63,12 @@ def test_s3_ready_enables_everything() -> None:
         True,
     )
     assert controls.load_mode == LOAD_ENABLED
-    assert controls.draw_label == DRAW_IDLE_LABEL
+    assert controls.draw_label == draw_label()
 
 
 def test_draw_label_becomes_again_after_result() -> None:
-    assert controls_for(AppState.READY, has_result=True).draw_label == DRAW_AGAIN_LABEL
-    assert controls_for(AppState.DETAIL_LOADING, has_result=True).draw_label == DRAW_AGAIN_LABEL
+    assert controls_for(AppState.READY, has_result=True).draw_label == draw_label(True)
+    assert controls_for(AppState.DETAIL_LOADING, has_result=True).draw_label == draw_label(True)
 
 
 def test_s4_empty_pool() -> None:
@@ -89,7 +88,7 @@ def test_s5_drawing_locks_inputs() -> None:
     assert controls.load_mode == LOAD_DISABLED
     assert controls.pool_enabled is False
     assert controls.draw_enabled is False
-    assert controls.draw_label == DRAW_BUSY_LABEL
+    assert controls.draw_label == drawing_label()
     assert controls.zone3_hint is None, "动画期间不要覆盖大字区域"
 
 
@@ -98,7 +97,7 @@ def test_s6_detail_loading_keeps_draw_available() -> None:
     controls = controls_for(AppState.DETAIL_LOADING, has_result=True)
     assert controls.draw_enabled is True
     assert controls.identity_enabled is True
-    assert controls.draw_label == DRAW_AGAIN_LABEL
+    assert controls.draw_label == draw_label(True)
 
 
 def test_s7_offline_still_playable() -> None:

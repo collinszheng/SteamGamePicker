@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from app.i18n import t
+
 #: 缺值统一显示为破折号（PRD 5.5）
 PLACEHOLDER = "—"
 
@@ -117,7 +119,7 @@ class GameDetails:
     def price_text(self) -> str:
         """售价展示：免费游戏显示「免费」，其余只显示未打折的原价（PRD D7）。"""
         if self.is_free:
-            return "免费"
+            return t("ui.free")
         return display_or_placeholder(self.price_initial)
 
 
@@ -147,10 +149,10 @@ def display_or_placeholder(value: object) -> str:
 def format_playtime(minutes: int) -> str:
     """游玩时长展示规则（PRD 5.3）：未玩过 / 不足 1 小时 / 12.4 小时。"""
     if minutes <= 0:
-        return "未玩过"
+        return t("ui.playtime_never")
     if minutes < 60:
-        return "不足 1 小时"
-    return f"{minutes / 60:.1f} 小时"
+        return t("ui.playtime_under_hour")
+    return t("ui.playtime_hours", hours=f"{minutes / 60:.1f}")
 
 
 def details_meta_line(details: GameDetails) -> str:
@@ -165,4 +167,4 @@ def details_meta_line(details: GameDetails) -> str:
 
 def details_price_line(details: GameDetails) -> str:
     """结果区售价行：只显示未打折原价 / 免费（PRD D7）。"""
-    return f"售价 {details.price_text}"
+    return t("ui.price_line", price=details.price_text)

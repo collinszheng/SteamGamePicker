@@ -35,6 +35,11 @@ SORT_NAME = "name"
 SORT_PLAYTIME = "playtime"
 VALID_SORT_KEYS = (SORT_NAME, SORT_PLAYTIME)
 
+LANGUAGE_ZH = "zh"
+LANGUAGE_EN = "en"
+DEFAULT_LANGUAGE = LANGUAGE_ZH
+VALID_LANGUAGES = (LANGUAGE_ZH, LANGUAGE_EN)
+
 DEFAULT_GEOMETRY = "800x600"
 
 
@@ -116,6 +121,7 @@ class Config:
     last_preset: str = PRESET_ALL
     playtime_threshold_minutes: int = DEFAULT_THRESHOLD_MINUTES
     details_cache_ttl_days: int = DEFAULT_TTL_DAYS
+    language: str = DEFAULT_LANGUAGE
     ui: UiState = field(default_factory=UiState)
 
     @property
@@ -131,12 +137,14 @@ class Config:
             "last_preset": self.last_preset,
             "playtime_threshold_minutes": self.playtime_threshold_minutes,
             "details_cache_ttl_days": self.details_cache_ttl_days,
+            "language": self.language,
             "ui": self.ui.to_dict(),
         }
 
     @classmethod
     def from_dict(cls, data: dict[str, object]) -> Config:
         preset = data.get("last_preset")
+        language = data.get("language")
         return cls(
             api_key=_as_str(data.get("api_key")),
             last_steam_id=_as_str(data.get("last_steam_id")),
@@ -148,6 +156,7 @@ class Config:
             details_cache_ttl_days=_as_int(
                 data.get("details_cache_ttl_days"), DEFAULT_TTL_DAYS, minimum=1
             ),
+            language=language if language in VALID_LANGUAGES else DEFAULT_LANGUAGE,
             ui=UiState.from_dict(data.get("ui")),
         )
 

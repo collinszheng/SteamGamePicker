@@ -18,6 +18,7 @@ from app import APP_NAME, APP_VERSION
 from app.cache import GameCache
 from app.config import ConfigStore, LoadResult
 from app.errors import AppError, status
+from app.i18n import set_language, t
 from app.logging_setup import setup_logging
 from app.steam_api import SteamClient
 from app.trust import system_trust_available
@@ -40,6 +41,7 @@ def bootstrap() -> tuple[ConfigStore, object, LoadResult]:
 def build_app() -> tuple[tk.Tk, MainWindow]:
     """组装可运行的应用（测试与 main() 共用）。"""
     store, logger, result = bootstrap()
+    set_language(result.config.language)  # 界面语言来自配置，默认中文
     root = tk.Tk()
     worker = Worker(root, logger=logger)  # type: ignore[arg-type]
     client = SteamClient(result.config.api_key)
@@ -137,7 +139,7 @@ def selftest(report_path: Path | None, *, live: bool = False) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog=APP_NAME, description="从 Steam 游戏库中随机抽一款游戏")
+    parser = argparse.ArgumentParser(prog=APP_NAME, description=t("cli.description"))
     parser.add_argument("--selftest", action="store_true", help="自检并退出（打包验证用）")
     parser.add_argument("--report", type=Path, default=None, help="自检报告输出路径")
     parser.add_argument("--live", action="store_true", help="自检时额外真实请求一次 Steam")

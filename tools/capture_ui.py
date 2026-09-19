@@ -93,16 +93,37 @@ def report(root: tk.Tk) -> None:
             )
 
 
-def main(target: str, second: str | None = None) -> int:
+def main(target: str, second: str | None = None, english: str | None = None) -> int:
     out = Path(target).resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
     out2 = Path(second).resolve() if second else None
+    out3 = Path(english).resolve() if english else None
     with tempfile.TemporaryDirectory() as tmp:
         store = ConfigStore(Path(tmp) / "appdata")
         store.ensure_dirs()
         root = tk.Tk()
         window = MainWindow(root, store=store, config=Config(api_key="K" * 32))
         root.geometry("800x600+40+40")  # 固定默认尺寸与位置，保证截图可比
+
+        if out3 is not None:  # 英文界面（证明语言切换真的换了文案）
+            window.config.language = "en"
+            window.on_settings_saved()
+            window.set_games(
+                [Game(appid=index, name=name, playtime_forever=minutes) for index, (name, minutes) in enumerate(SAMPLE, 1)],
+                updated_at="2026-09-19T15:04:05+08:00",
+            )
+            window.toggle_pool_panel(expand=True)
+            window.toggle_game(4)
+            window.winner = window.games[6]
+            window._on_anim_frame(window.winner.name, True)
+            window.render_details(DETAILS)
+            window.refresh_state()
+            grab(root, out3)
+            window.config.language = "zh"
+            window.on_settings_saved()
+            root.destroy()
+            return 0
+
         window.set_games(
             [Game(appid=index, name=name, playtime_forever=minutes) for index, (name, minutes) in enumerate(SAMPLE, 1)],
             updated_at="2026-09-19T15:04:05+08:00",

@@ -18,24 +18,36 @@ from typing import Any
 from app import APP_NAME, APP_VERSION
 from app.config import DEFAULT_THRESHOLD_MINUTES, DEFAULT_TTL_DAYS, Config, ConfigStore
 from app.ui import theme
+from app.i18n import LANGUAGE_NAMES, VALID_LANGUAGES, t
 
 API_KEY_URL = "https://steamcommunity.com/dev/apikey"
 API_KEY_LENGTH = 32
 _KEY_RE = re.compile(r"^[0-9A-Fa-f]{32}$")
 
-MSG_KEY_EMPTY = "请填写 Steam API Key"
-MSG_KEY_FORMAT = f"API Key 应为 {API_KEY_LENGTH} 位十六进制字符"
-MSG_THRESHOLD = "「玩得很少」的阈值应为 1 到 100000 之间的整数"
-MSG_TTL = "缓存有效期应为 1 到 365 之间的整数"
+
+def msg_key_empty() -> str:
+    return t("settings.msg_key_empty")
+
+
+def msg_key_format() -> str:
+    return t("settings.msg_key_format")
+
+
+def msg_threshold() -> str:
+    return t("settings.msg_threshold")
+
+
+def msg_ttl() -> str:
+    return t("settings.msg_ttl")
 
 
 def validate_api_key(text: str | None) -> str | None:
-    """合法返回 ``None``，否则返回中文错误文案（AC-04）。"""
+    """合法返回 ``None``，否则返回当前语言下的错误文案（AC-04）。"""
     value = (text or "").strip()
     if not value:
-        return MSG_KEY_EMPTY
+        return msg_key_empty()
     if len(value) != API_KEY_LENGTH or not _KEY_RE.match(value):
-        return MSG_KEY_FORMAT
+        return msg_key_format()
     return None
 
 
@@ -83,7 +95,7 @@ class SettingsDialog:
         self.window = tk.Toplevel(parent)
         theme.apply_theme(self.window)
         self.window.configure(bg=theme.COLOR_BG)
-        self.window.title("首次设置" if first_run else "设置")
+        self.window.title(t("settings.first_run_title") if first_run else t("settings.title"))
         self.window.transient(parent)
         self.window.resizable(False, False)
         self.window.protocol("WM_DELETE_WINDOW", self.cancel)
@@ -102,7 +114,7 @@ class SettingsDialog:
         if self.first_run:
             ttk.Label(
                 frame,
-                text="首次使用需要填写 Steam API Key（只需一次）",
+                text=t("settings.first_run_heading"),
                 style=theme.STYLE_LABEL,
                 font=theme.FONT_SECTION,
                 foreground=theme.COLOR_ACCENT,
@@ -110,7 +122,7 @@ class SettingsDialog:
             row += 1
             ttk.Label(
                 frame,
-                text="Steam 不允许第三方读取未授权数据，请先申请一个免费 Key。",
+                text=t("settings.first_run_hint"),
                 font=theme.FONT_SMALL,
                 foreground=theme.COLOR_MUTED,
             ).grid(row=row, column=0, sticky="w", pady=(theme.PAD_TIGHT, theme.PAD_INNER))
@@ -120,14 +132,16 @@ class SettingsDialog:
         link_row.grid(row=row, column=0, sticky="w", pady=(0, theme.PAD_INNER))
         self.link_button = ttk.Button(
             link_row,
-            text="前往 Steam 申请 API Key",
+            text=t("settings.api_key_link"),
             style=theme.STYLE_LINK_BUTTON,
             command=open_api_key_page,
         )
         self.link_button.grid(row=0, column=0)
         row += 1
 
-        ttk.Label(frame, text="API Key", font=theme.FONT_BODY).grid(row=row, column=0, sticky="w")
+        ttk.Label(frame, text=t("settings.api_key_label"), font=theme.FONT_BODY).grid(
+            row=row, column=0, sticky="w"
+        )
         row += 1
         key_row = ttk.Frame(frame)
         key_row.grid(row=row, column=0, sticky="ew")
@@ -145,7 +159,7 @@ class SettingsDialog:
         self.show_var = tk.BooleanVar(value=False)
         self.show_check = ttk.Checkbutton(
             key_row,
-            text="显示",
+            text=t("settings.show_key"),
             variable=self.show_var,
             style=theme.STYLE_CHECK,
             command=self._toggle_show,
@@ -153,7 +167,7 @@ class SettingsDialog:
         self.show_check.grid(row=0, column=1, padx=(theme.PAD_INNER, 0))
         row += 1
 
-        ttk.Label(frame, text="「玩得很少」阈值（分钟）", font=theme.FONT_BODY).grid(
+        ttk.Label(frame, text=t("settings.threshold_label"), font=theme.FONT_BODY).grid(
             row=row, column=0, sticky="w", pady=(theme.PAD_INNER, 0)
         )
         row += 1
@@ -164,7 +178,7 @@ class SettingsDialog:
         self.threshold_entry.grid(row=row, column=0, sticky="w")
         row += 1
 
-        ttk.Label(frame, text="详情缓存有效期（天）", font=theme.FONT_BODY).grid(
+        ttk.Label(frame, text=t("settings.ttl_label"), font=theme.FONT_BODY).grid(
             row=row, column=0, sticky="w", pady=(theme.PAD_INNER, 0)
         )
         row += 1
@@ -175,18 +189,39 @@ class SettingsDialog:
         self.ttl_entry.grid(row=row, column=0, sticky="w")
         row += 1
 
+        # 界面语言：选项名用各自语言的自名（中文 / English），不随当前语言变化
+        ttk.Label(frame, text=t("settings.language_label"), font=theme.FONT_BODY).grid(
+            row=row, column=0, sticky="w", pady=(theme.PAD_INNER, 0)
+        )
+        row += 1
+        language_row = ttk.Frame(frame)
+        language_row.grid(row=row, column=0, sticky="w")
+        self.language_var = tk.StringVar(value=self.config.language)
+        self.language_buttons: dict[str, ttk.Radiobutton] = {}
+        for index, language in enumerate(VALID_LANGUAGES):
+            option = ttk.Radiobutton(
+                language_row,
+                text=LANGUAGE_NAMES.get(language, language),
+                value=language,
+                variable=self.language_var,
+                style=theme.STYLE_RADIO,
+            )
+            option.grid(row=0, column=index, padx=(0, theme.PAD_INNER))
+            self.language_buttons[language] = option
+        row += 1
+
         log_row = ttk.Frame(frame)
         log_row.grid(row=row, column=0, sticky="ew", pady=(theme.PAD_INNER, 0))
         log_row.columnconfigure(0, weight=1)
         ttk.Label(
             log_row,
-            text=f"日志目录：{self.store.logs_dir}",
+            text=t("settings.log_dir", path=self.store.logs_dir),
             font=theme.FONT_SMALL,
             foreground=theme.COLOR_MUTED,
         ).grid(row=0, column=0, sticky="w")
         self.log_button = ttk.Button(
             log_row,
-            text="打开日志目录",
+            text=t("settings.open_log_dir"),
             style=theme.STYLE_BUTTON,
             command=lambda: open_directory(self.store.logs_dir),
         )
@@ -202,11 +237,11 @@ class SettingsDialog:
         button_row = ttk.Frame(frame)
         button_row.grid(row=row, column=0, sticky="e", pady=(theme.PAD_INNER, 0))
         self.save_button = ttk.Button(
-            button_row, text="保存", style=theme.STYLE_ACCENT_BUTTON, command=self.save
+            button_row, text=t("settings.save"), style=theme.STYLE_ACCENT_BUTTON, command=self.save
         )
         self.save_button.grid(row=0, column=0, padx=(0, theme.PAD_TIGHT))
         self.cancel_button = ttk.Button(
-            button_row, text="取消", style=theme.STYLE_BUTTON, command=self.cancel
+            button_row, text=t("settings.cancel"), style=theme.STYLE_BUTTON, command=self.cancel
         )
         self.cancel_button.grid(row=0, column=1)
 
@@ -225,14 +260,14 @@ class SettingsDialog:
             return False
 
         threshold, threshold_error = validate_positive_int(
-            self.threshold_var.get(), low=1, high=100000, message=MSG_THRESHOLD
+            self.threshold_var.get(), low=1, high=100000, message=msg_threshold()
         )
         if threshold_error:
             self.error_label.configure(text=threshold_error)
             return False
 
         ttl, ttl_error = validate_positive_int(
-            self.ttl_var.get(), low=1, high=365, message=MSG_TTL
+            self.ttl_var.get(), low=1, high=365, message=msg_ttl()
         )
         if ttl_error:
             self.error_label.configure(text=ttl_error)
@@ -242,17 +277,19 @@ class SettingsDialog:
         self.config.api_key = self.key_var.get().strip()
         self.config.playtime_threshold_minutes = threshold or DEFAULT_THRESHOLD_MINUTES
         self.config.details_cache_ttl_days = ttl or DEFAULT_TTL_DAYS
+        self.config.language = self.language_var.get()
         try:
             self.store.save(self.config)
         except OSError:
-            self.error_label.configure(text="配置保存失败，请检查磁盘权限")
+            self.error_label.configure(text=t("settings.save_failed"))
             return False
 
+        # 先关窗再回调：on_saved 在语言切换时会重建主界面
+        self.close()
         if self.logger is not None:
             self.logger.info("设置已保存")
         if self.on_saved is not None:
             self.on_saved()
-        self.close()
         return True
 
     def cancel(self) -> None:
@@ -279,7 +316,7 @@ class AboutDialog:
         self.window = tk.Toplevel(parent)
         theme.apply_theme(self.window)
         self.window.configure(bg=theme.COLOR_BG)
-        self.window.title("关于")
+        self.window.title(t("about.title"))
         self.window.transient(parent)
         self.window.resizable(False, False)
 
@@ -293,20 +330,19 @@ class AboutDialog:
             font=theme.FONT_SECTION,
             foreground=theme.COLOR_ACCENT,
         ).pack(anchor="w")
-        ttk.Label(frame, text=f"版本 v{APP_VERSION}", style=theme.STYLE_LABEL).pack(
+        ttk.Label(frame, text=t("about.version", version=APP_VERSION), style=theme.STYLE_LABEL).pack(
             anchor="w", pady=(theme.PAD_TIGHT, theme.PAD_INNER)
         )
         ttk.Label(
             frame,
-            text="仅通过 Steam 公开 Web API 读取公开数据；\n"
-            "API Key 只保存在本机，不上传、不硬编码。",
+            text=t("about.privacy"),
             font=theme.FONT_SMALL,
             foreground=theme.COLOR_MUTED,
             justify="left",
         ).pack(anchor="w")
         ttk.Label(
             frame,
-            text=f"配置目录：{store.base_dir}",
+            text=t("about.config_dir", path=store.base_dir),
             font=theme.FONT_SMALL,
             foreground=theme.COLOR_MUTED,
             wraplength=380,
@@ -314,7 +350,7 @@ class AboutDialog:
         ).pack(anchor="w", pady=(theme.PAD_INNER, 0))
         ttk.Label(
             frame,
-            text=f"日志文件：{store.logs_dir / 'app.log'}",
+            text=t("about.log_file", path=store.logs_dir / "app.log"),
             font=theme.FONT_SMALL,
             foreground=theme.COLOR_MUTED,
             wraplength=380,
@@ -325,11 +361,11 @@ class AboutDialog:
         buttons.pack(anchor="e", pady=(theme.PAD_INNER, 0))
         ttk.Button(
             buttons,
-            text="打开日志目录",
+            text=t("about.open_log_dir"),
             style=theme.STYLE_BUTTON,
             command=lambda: open_directory(store.logs_dir),
         ).grid(row=0, column=0, padx=(0, theme.PAD_TIGHT))
-        ttk.Button(buttons, text="关闭", style=theme.STYLE_BUTTON, command=self.close).grid(
+        ttk.Button(buttons, text=t("about.close"), style=theme.STYLE_BUTTON, command=self.close).grid(
             row=0, column=1
         )
 

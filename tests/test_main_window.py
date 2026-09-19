@@ -17,7 +17,7 @@ from app.config import PRESET_ALL, PRESET_CUSTOM, PRESET_LOW, PRESET_NEVER, SORT
 from app.errors import ACTION_EXPAND, AppError, Err, message, status
 from app.models import Game
 from app.pool import apply_preset
-from app.state import DRAW_BUSY_LABEL, AppState
+from app.state import AppState, drawing_label
 from app.ui import theme
 from app.ui.main_window import MainWindow
 
@@ -147,7 +147,7 @@ def test_drawing_state_locks_inputs(window: MainWindow) -> None:
     assert str(window.identity_entry.cget("state")) == "disabled"
     assert str(window.load_button.cget("state")) == "disabled"
     assert str(window.tree.cget("selectmode")) == "none"
-    assert str(window.draw_button.cget("text")) == DRAW_BUSY_LABEL
+    assert str(window.draw_button.cget("text")) == drawing_label()
     assert str(window.draw_button.cget("state")) == "disabled"
     for button in window.preset_buttons.values():
         assert str(button.cget("state")) == "disabled"

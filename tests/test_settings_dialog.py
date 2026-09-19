@@ -12,12 +12,12 @@ from app.ui import settings_dialog
 from app.ui.main_window import MainWindow
 from app.ui.settings_dialog import (
     API_KEY_URL,
-    MSG_KEY_EMPTY,
-    MSG_KEY_FORMAT,
-    MSG_THRESHOLD,
-    MSG_TTL,
     AboutDialog,
     SettingsDialog,
+    msg_key_empty,
+    msg_key_format,
+    msg_threshold,
+    msg_ttl,
     validate_api_key,
     validate_positive_int,
 )
@@ -58,31 +58,26 @@ def test_validate_api_key_accepts_32_hex(value: str) -> None:
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        ("", MSG_KEY_EMPTY),
-        ("   ", MSG_KEY_EMPTY),
-        (None, MSG_KEY_EMPTY),
-        ("0123456789abcdef0123456789ABCDE", MSG_KEY_FORMAT),  # 31 位
-        ("0123456789abcdef0123456789ABCDEF0", MSG_KEY_FORMAT),  # 33 位
-        ("0123456789abcdef0123456789ABCDEG", MSG_KEY_FORMAT),  # 非十六进制
-        ("这不是一个-key", MSG_KEY_FORMAT),
+        ("", "empty"),
+        ("   ", "empty"),
+        (None, "empty"),
+        ("0123456789abcdef0123456789ABCDE", "format"),  # 31 位
+        ("0123456789abcdef0123456789ABCDEF0", "format"),  # 33 位
+        ("0123456789abcdef0123456789ABCDEG", "format"),  # 非十六进制
+        ("这不是一个-key", "format"),
     ],
 )
 def test_validate_api_key_rejects_bad_values(value: str | None, expected: str) -> None:
-    assert validate_api_key(value) == expected
+    assert validate_api_key(value) == (msg_key_empty() if expected == "empty" else msg_key_format())
 
 
 def test_validate_positive_int() -> None:
-    assert validate_positive_int("120", low=1, high=100000, message=MSG_THRESHOLD) == (120, None)
-    assert validate_positive_int("abc", low=1, high=100000, message=MSG_THRESHOLD) == (
-        None,
-        MSG_THRESHOLD,
-    )
-    assert validate_positive_int("0", low=1, high=100000, message=MSG_THRESHOLD) == (
-        None,
-        MSG_THRESHOLD,
-    )
-    assert validate_positive_int("", low=1, high=365, message=MSG_TTL) == (None, MSG_TTL)
-    assert validate_positive_int("-5", low=1, high=365, message=MSG_TTL) == (None, MSG_TTL)
+    threshold, ttl = msg_threshold(), msg_ttl()
+    assert validate_positive_int("120", low=1, high=100000, message=threshold) == (120, None)
+    assert validate_positive_int("abc", low=1, high=100000, message=threshold) == (None, threshold)
+    assert validate_positive_int("0", low=1, high=100000, message=threshold) == (None, threshold)
+    assert validate_positive_int("", low=1, high=365, message=ttl) == (None, ttl)
+    assert validate_positive_int("-5", low=1, high=365, message=ttl) == (None, ttl)
 
 
 # ------------------------------------------------------------------ 设置窗口
@@ -92,7 +87,7 @@ def test_save_rejects_invalid_key(root, store: ConfigStore, dialogs) -> None:
     dialog.key_var.set("short-key")
 
     assert dialog.save() is False
-    assert dialog.error_text() == MSG_KEY_FORMAT
+    assert dialog.error_text() == msg_key_format()
     assert store.config_path.exists() is False
     assert dialog.exists() is True
 
@@ -103,12 +98,12 @@ def test_save_rejects_invalid_threshold_and_ttl(root, store: ConfigStore, dialog
 
     dialog.threshold_var.set("零")
     assert dialog.save() is False
-    assert dialog.error_text() == MSG_THRESHOLD
+    assert dialog.error_text() == msg_threshold()
 
     dialog.threshold_var.set(str(DEFAULT_THRESHOLD_MINUTES))
     dialog.ttl_var.set("0")
     assert dialog.save() is False
-    assert dialog.error_text() == MSG_TTL
+    assert dialog.error_text() == msg_ttl()
 
 
 def test_save_persists_config_and_calls_back(root, store: ConfigStore, dialogs) -> None:
