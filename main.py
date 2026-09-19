@@ -1,4 +1,4 @@
-"""Steam 游戏抽签器入口。
+"""Steam Game Picker 入口。
 
 职责：初始化目录与日志 → 读取配置 → 组装主窗口与后台执行器 →
 首次运行弹引导 / 否则从缓存秒开并后台刷新。
@@ -137,7 +137,7 @@ def selftest(report_path: Path | None, *, live: bool = False) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(prog=APP_NAME, description="Steam 游戏抽签器")
+    parser = argparse.ArgumentParser(prog=APP_NAME, description="从 Steam 游戏库中随机抽一款游戏")
     parser.add_argument("--selftest", action="store_true", help="自检并退出（打包验证用）")
     parser.add_argument("--report", type=Path, default=None, help="自检报告输出路径")
     parser.add_argument("--live", action="store_true", help="自检时额外真实请求一次 Steam")

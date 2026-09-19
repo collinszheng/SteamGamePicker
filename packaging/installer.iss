@@ -1,4 +1,4 @@
-; Steam 游戏抽签器 安装包脚本（T7.2，对应 PRD 7.1 ~ 7.3）
+; Steam Game Picker 安装包脚本（T7.2，对应 PRD 7.1 ~ 7.3）
 ;
 ; 编译（在项目根目录执行）：
 ;   ISCC.exe packaging\installer.iss      （ISCC 位于 Inno Setup 安装目录）
@@ -11,10 +11,11 @@
 ;   * 支持静默安装（Inno 原生 /VERYSILENT）
 ;   * 卸载时询问是否同时删除配置与缓存，默认保留（PRD 6.5）
 
-#define AppName "Steam 游戏抽签器"
+#define AppName "Steam Game Picker"
+; 目录名与可执行文件名保持 ASCII 不变（改名不影响已安装路径与用户配置）
 #define AppNameEn "SteamGamePicker"
 #define AppVersion "1.0.0"
-#define AppPublisher "Steam 游戏抽签器项目"
+#define AppPublisher "Steam Game Picker"
 #define AppExeName "SteamGamePicker.exe"
 #define SourceExe "..\dist\SteamGamePicker.exe"
 #define IconFile "..\assets\app.ico"

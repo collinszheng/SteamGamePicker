@@ -1,4 +1,4 @@
-# Steam 游戏抽签器 开发计划（DEV PLAN）
+# Steam Game Picker 开发计划（DEV PLAN）
 
 | 项目 | 内容 |
 | :--- | :--- |
