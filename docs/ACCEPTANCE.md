@@ -8,7 +8,7 @@
 | 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3（Inno 未随附中文语言包） |
 | 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖 |
 | 自动化测试 | **361 项全部通过**（`python -m pytest`） |
-| 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（用用户提供的 SteamID64 与密钥，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/76561199558729735` → **61 款游戏，加载 0.55 秒**；账号矩阵中"非公开 / 空库 / 无效 Key"三项待提供对应账号 |
+| 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（用用户提供的 SteamID64 与密钥，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/<SteamID64>` → **61 款游戏，加载 0.55 秒**；账号矩阵中"非公开 / 空库 / 无效 Key"三项待提供对应账号 |
 
 ## 0. 结论摘要
 
@@ -224,6 +224,6 @@ python -m PyInstaller packaging\SteamGamePicker.spec --noconfirm
 | AC-43 干净 Win10 | 一台未装过本程序的 Win10 64 位机器 | 运行安装包 → 启动 → 抽签 → 卸载 |
 | 代码签名（可选） | 代码签名证书 | 用 `signtool` 对 exe 与安装包签名，可消除 SmartScreen 警告 |
 
-> 已用你提供的账号完成的实测：`https://steamcommunity.com/profiles/76561199558729735`
+> 已用你提供的账号完成的实测：`https://steamcommunity.com/profiles/<SteamID64>`
 > → 解析成功 → **61 款游戏、0.55 秒**；「从未玩过」11 款、「玩得很少」16 款、
 > 两者并存 27 款（并集语义正确）。
