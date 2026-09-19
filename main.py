@@ -60,6 +60,23 @@ def build_app() -> tuple[tk.Tk, MainWindow]:
     return root, window
 
 
+def _probe_tk() -> bool:
+    """验证 Tk 可用（打包后这是最容易出问题的一环）。
+
+    若进程里已有根窗口（例如测试会话）则复用之：同一进程里反复创建 Tcl 解释器
+    在本机会偶发 "Can't find a usable init.tcl"。
+    """
+    existing = getattr(tk, "_default_root", None)
+    if existing is not None and existing.winfo_exists():
+        existing.update()
+        return True
+    probe = tk.Tk()
+    probe.withdraw()
+    probe.update()
+    probe.destroy()
+    return True
+
+
 def selftest(report_path: Path | None, *, live: bool = False) -> int:
     """打包产物自检：验证依赖被正确打进包里，并测量启动耗时。
 
@@ -83,10 +100,7 @@ def selftest(report_path: Path | None, *, live: bool = False) -> int:
     report["cache_bytes"] = cache.total_bytes()
 
     # 关键：验证 tkinter / Tcl-Tk 数据文件 / Pillow / requests 都被打进了包
-    probe = tk.Tk()
-    probe.withdraw()
-    probe.update()
-    probe.destroy()
+    _probe_tk()
     report["tk_ok"] = True
     from PIL import Image  # noqa: F401  # 触发导入，验证 Pillow 已打包
 

@@ -17,11 +17,13 @@ from app.ui import theme
 
 
 def test_theme_values_match_prd(root: tk.Tk) -> None:
-    assert theme.FONT_FAMILY == "Microsoft YaHei"
-    assert theme.FONT_TITLE == ("Microsoft YaHei", 20, "bold")
-    assert theme.FONT_ROLLING == ("Microsoft YaHei", 28, "bold")
-    assert theme.COLOR_OK == "#1B7F3A"
-    assert theme.COLOR_ROLLING == "#333333"
+    """Steam 深色改版后的主题契约（配色细节见 test_ui_theme.py）。"""
+    assert theme.FONT_FAMILY in theme.FONT_FAMILY_CANDIDATES
+    assert theme.FONT_TITLE == (theme.FONT_FAMILY, 20, "bold")
+    assert theme.FONT_ROLLING == (theme.FONT_FAMILY, 26, "bold")
+    assert theme.COLOR_OK == "#a4d007"
+    assert theme.COLOR_ROLLING == "#c6d4df"
+    assert theme.COLOR_BG == "#1b2838"
     assert (theme.WINDOW_DEFAULT_WIDTH, theme.WINDOW_DEFAULT_HEIGHT) == (800, 600)
     assert (theme.WINDOW_MIN_WIDTH, theme.WINDOW_MIN_HEIGHT) == (640, 480)
 
@@ -42,9 +44,10 @@ def test_color_for_level(level: str, expected: str) -> None:
 
 @pytest.mark.parametrize(
     ("window_width", "expected_width"),
-    [(800, 300), (1000, 300), (640, 268), (400, 240)],
+    [(800, 240), (900, 270), (1000, 300), (640, 240), (400, 240)],
 )
 def test_header_image_size_keeps_aspect(window_width: int, expected_width: int) -> None:
+    """封面宽度 = clamp(窗口宽 × 0.30, 240, 300)，保证默认 800 宽窗口下不过度占高。"""
     width, height = theme.header_image_size(window_width)
     assert width == expected_width
     assert height == round(width * 215 / 460)

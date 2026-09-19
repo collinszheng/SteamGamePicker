@@ -81,6 +81,8 @@ class SettingsDialog:
         self.logger = logger
 
         self.window = tk.Toplevel(parent)
+        theme.apply_theme(self.window)
+        self.window.configure(bg=theme.COLOR_BG)
         self.window.title("首次设置" if first_run else "设置")
         self.window.transient(parent)
         self.window.resizable(False, False)
@@ -101,7 +103,9 @@ class SettingsDialog:
             ttk.Label(
                 frame,
                 text="首次使用需要填写 Steam API Key（只需一次）",
+                style=theme.STYLE_LABEL,
                 font=theme.FONT_SECTION,
+                foreground=theme.COLOR_ACCENT,
             ).grid(row=row, column=0, sticky="w")
             row += 1
             ttk.Label(
@@ -115,7 +119,10 @@ class SettingsDialog:
         link_row = ttk.Frame(frame)
         link_row.grid(row=row, column=0, sticky="w", pady=(0, theme.PAD_INNER))
         self.link_button = ttk.Button(
-            link_row, text="前往 Steam 申请 API Key", command=open_api_key_page
+            link_row,
+            text="前往 Steam 申请 API Key",
+            style=theme.STYLE_LINK_BUTTON,
+            command=open_api_key_page,
         )
         self.link_button.grid(row=0, column=0)
         row += 1
@@ -127,12 +134,21 @@ class SettingsDialog:
         key_row.columnconfigure(0, weight=1)
         self.key_var = tk.StringVar(value=self.config.api_key)
         self.key_entry = ttk.Entry(
-            key_row, textvariable=self.key_var, show="*", width=40, font=theme.FONT_BODY
+            key_row,
+            textvariable=self.key_var,
+            show="*",
+            width=40,
+            font=theme.FONT_BODY,
+            style=theme.STYLE_ENTRY,
         )
         self.key_entry.grid(row=0, column=0, sticky="ew")
         self.show_var = tk.BooleanVar(value=False)
         self.show_check = ttk.Checkbutton(
-            key_row, text="显示", variable=self.show_var, command=self._toggle_show
+            key_row,
+            text="显示",
+            variable=self.show_var,
+            style=theme.STYLE_CHECK,
+            command=self._toggle_show,
         )
         self.show_check.grid(row=0, column=1, padx=(theme.PAD_INNER, 0))
         row += 1
@@ -142,7 +158,9 @@ class SettingsDialog:
         )
         row += 1
         self.threshold_var = tk.StringVar(value=str(self.config.playtime_threshold_minutes))
-        self.threshold_entry = ttk.Entry(frame, textvariable=self.threshold_var, width=12)
+        self.threshold_entry = ttk.Entry(
+            frame, textvariable=self.threshold_var, width=12, style=theme.STYLE_ENTRY
+        )
         self.threshold_entry.grid(row=row, column=0, sticky="w")
         row += 1
 
@@ -151,7 +169,9 @@ class SettingsDialog:
         )
         row += 1
         self.ttl_var = tk.StringVar(value=str(self.config.details_cache_ttl_days))
-        self.ttl_entry = ttk.Entry(frame, textvariable=self.ttl_var, width=12)
+        self.ttl_entry = ttk.Entry(
+            frame, textvariable=self.ttl_var, width=12, style=theme.STYLE_ENTRY
+        )
         self.ttl_entry.grid(row=row, column=0, sticky="w")
         row += 1
 
@@ -165,7 +185,10 @@ class SettingsDialog:
             foreground=theme.COLOR_MUTED,
         ).grid(row=0, column=0, sticky="w")
         self.log_button = ttk.Button(
-            log_row, text="打开日志目录", command=lambda: open_directory(self.store.logs_dir)
+            log_row,
+            text="打开日志目录",
+            style=theme.STYLE_BUTTON,
+            command=lambda: open_directory(self.store.logs_dir),
         )
         self.log_button.grid(row=0, column=1, padx=(theme.PAD_INNER, 0))
         row += 1
@@ -178,9 +201,13 @@ class SettingsDialog:
 
         button_row = ttk.Frame(frame)
         button_row.grid(row=row, column=0, sticky="e", pady=(theme.PAD_INNER, 0))
-        self.save_button = ttk.Button(button_row, text="保存", command=self.save)
+        self.save_button = ttk.Button(
+            button_row, text="保存", style=theme.STYLE_ACCENT_BUTTON, command=self.save
+        )
         self.save_button.grid(row=0, column=0, padx=(0, theme.PAD_TIGHT))
-        self.cancel_button = ttk.Button(button_row, text="取消", command=self.cancel)
+        self.cancel_button = ttk.Button(
+            button_row, text="取消", style=theme.STYLE_BUTTON, command=self.cancel
+        )
         self.cancel_button.grid(row=0, column=1)
 
     def _toggle_show(self) -> None:
@@ -250,6 +277,8 @@ class AboutDialog:
     def __init__(self, parent: tk.Misc, *, store: ConfigStore) -> None:
         self.store = store
         self.window = tk.Toplevel(parent)
+        theme.apply_theme(self.window)
+        self.window.configure(bg=theme.COLOR_BG)
         self.window.title("关于")
         self.window.transient(parent)
         self.window.resizable(False, False)
@@ -257,8 +286,14 @@ class AboutDialog:
         frame = ttk.Frame(self.window, padding=theme.PAD_OUTER)
         frame.pack(fill="both", expand=True)
 
-        ttk.Label(frame, text=APP_NAME, font=theme.FONT_SECTION).pack(anchor="w")
-        ttk.Label(frame, text=f"版本 v{APP_VERSION}", font=theme.FONT_BODY).pack(
+        ttk.Label(
+            frame,
+            text=APP_NAME,
+            style=theme.STYLE_LABEL,
+            font=theme.FONT_SECTION,
+            foreground=theme.COLOR_ACCENT,
+        ).pack(anchor="w")
+        ttk.Label(frame, text=f"版本 v{APP_VERSION}", style=theme.STYLE_LABEL).pack(
             anchor="w", pady=(theme.PAD_TIGHT, theme.PAD_INNER)
         )
         ttk.Label(
@@ -289,9 +324,14 @@ class AboutDialog:
         buttons = ttk.Frame(frame)
         buttons.pack(anchor="e", pady=(theme.PAD_INNER, 0))
         ttk.Button(
-            buttons, text="打开日志目录", command=lambda: open_directory(store.logs_dir)
+            buttons,
+            text="打开日志目录",
+            style=theme.STYLE_BUTTON,
+            command=lambda: open_directory(store.logs_dir),
         ).grid(row=0, column=0, padx=(0, theme.PAD_TIGHT))
-        ttk.Button(buttons, text="关闭", command=self.close).grid(row=0, column=1)
+        ttk.Button(buttons, text="关闭", style=theme.STYLE_BUTTON, command=self.close).grid(
+            row=0, column=1
+        )
 
     def close(self) -> None:
         try:

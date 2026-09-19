@@ -6,15 +6,15 @@
 | 代码版本 | v1.0.0（`D:\Dev\SteamGamePicker`） |
 | 验收日期 | 2026-09-19 |
 | 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3（Inno 未随附中文语言包） |
-| 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖 |
-| 自动化测试 | **361 项全部通过**（`python -m pytest`） |
+| 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格 |
+| 自动化测试 | **405 项全部通过**（`python -m pytest`） |
 | 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（用用户提供的 SteamID64 与密钥，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/<SteamID64>` → **61 款游戏，加载 0.55 秒**；账号矩阵中"非公开 / 空库 / 无效 Key"三项待提供对应账号 |
 
 ## 0. 结论摘要
 
 | 状态 | 数量 | 说明 |
 | :--- | :--- | :--- |
-| ✅ 通过 | 44 | 有自动化测试或实测证据 |
+| ✅ 通过 | 46 | 有自动化测试或实测证据 |
 | ⚠️ 部分通过 | 3 | AC-36（控件重叠需人工目视）、AC-37（真实按键事件）、AC-43 之外的设备相关项见下行 |
 | ⏸ 待凭据 / 待设备 | 3 | AC-06 / AC-07 / AC-08 中需要"非公开 / 空库 / 无效 Key"的场景；AC-43 的干净 Win10 机器 |
 | ❌ 未通过 | 0 | — |
@@ -130,6 +130,13 @@
 | AC-49 两个筛选可并存 | ✅ | `tests/test_range_filters.py`（11 项）：`test_both_filters_can_be_checked_together`、`test_unchecking_one_filter_keeps_the_other`、`test_all_button_clears_both_filters`、`test_unchecking_last_filter_falls_back_to_all`、`test_manual_change_switches_to_custom_and_clears_filters`、`test_filters_persist_and_restore`、`test_combined_filters_drive_the_draw_pool`；**真实数据印证**：用户 61 款库中"从未玩过"11 款 + "玩得很少"16 款 = 并集 27 款，与代码计算一致 |
 | AC-50 结果不被占位覆盖 | ✅ | `test_state.py::test_drawn_result_is_never_overwritten_by_placeholder`、`test_empty_pool_hint_still_shown_even_with_result`；`test_main_window_draw.py`：详情加载完成后 / 详情失败后 / 切离线态后大字区仍为中签游戏名，且未抽签时占位文案正常显示、再抽一次会替换旧结果 |
 
+### 9.12 v1.5 Steam 官方风格改版（D10）
+
+| 编号 | 结果 | 证据 |
+| :--- | :--- | :--- |
+| AC-51 配色与控件样式 | ✅ | `tests/test_ui_theme.py`（33 项）：官方色板锁定（`#171a21/#1b2838/#2a475e/#66c0f4/#c6d4df`）、主按钮绿 `#4c6b22`、中签绿 `#a4d007`；`test_apply_theme_installs_styles` 验证 `ttk` 切到 `clam` 且样式实际生效；16 组前景/背景组合按 WCAG AA ≥ 4.5:1 参数化校验；`test_legacy_light_theme_colors_are_gone` 防止旧浅色配色回流；勾选框指示器用 clam 真正支持的 `indicatorbackground/indicatorforeground`（`test_clam_supports_the_options_we_configure` 防止再写错选项名） |
+| AC-52 布局与自适应 | ✅ | `test_no_widget_overflows_the_window`（800×600 与 640×480 下逐控件用 Tk 几何数据判定无越界，并断言受检控件 ≥ 20 个，避免空测试）；`test_short_window_auto_collapses_pool_panel`（窗口 < 520 高自动收起且不改写用户配置）；`test_cover_placeholder_is_hidden_until_a_result`；`test_bulk_button_labels_are_on_their_own_row`（搜索框与批量按钮分行，避免 800px 下按钮被裁）；`test_zone3_placeholder_uses_small_font`（26pt 提示会截断，改用 12pt） |
+
 ---
 
 ## 2. 与 PRD 的实现偏差（全部为有意为之，已记录）
@@ -163,6 +170,8 @@
 | 9 | 上述修复的首版把重试守卫做成"每客户端一次"，导致信任库切换成功后的后续请求再遇证书错误时不再重试 | 改为**每请求最多重试一次**（既不无限循环，后续请求也能受益），并由 `test_trust.py::test_retry_also_works_for_library_and_details` 锁定 |
 | 10 | **【用户反馈】** 抽签定格后，详情加载完成/失败回到 S3 时，区3 的大字被"输入 Steam ID 或资料地址后点击「加载游戏库」"占位文案覆盖，中签结果消失 | `state.controls_for` 在 READY / IDLE / OFFLINE 且已有结果时不再下发占位文案（PRD 11.1 S3 "灰色占位**或上次结果**"），并补 7 项回归测试（AC-50） |
 | 11 | **【用户要求改进】** 「从未玩过」与「玩得很少」原先互斥，无法同时筛选 | 改为可并存的复选（并集）；「全部参与」保持单选并点击即清空两个复选；两个都取消时回落为全部参与；手动改动后切「自定义」（D9 / AC-49） |
+| 12 | **【用户要求改版】** 原浅色界面风格不够好，希望贴近 Steam 官方观感 | 整体改为 Steam 官方深色配色 + 商店绿色主按钮（D10 / AC-51）；`ttk` 切到 `clam` 才能自绘深色控件；列表加斑马纹与被排除行灰显、区域卡片化、顶栏加 Steam 蓝强调线 |
+| 13 | 改版过程中用截屏自查发现三处真实问题：占位文案沿用 26pt 大字被窗口截断、搜索框与三个长文案批量按钮同行导致横向溢出、抽签后封面位挤掉列表高度 | 占位/提示改用 12pt；搜索框与批量按钮分行；未抽签时不占封面位 + 封面宽度比例 0.42→0.30；新增"逐控件越界检测"测试（AC-52）作为回归防线 |
 
 ---
 
@@ -170,11 +179,13 @@
 
 | 产出物 | 路径 | 大小 | SHA256 |
 | :--- | :--- | ---: | :--- |
-| 可执行文件 | `SteamGamePicker\dist\SteamGamePicker.exe` | 19,980,268 | `DD6664DD0E83C7AB0C7AA1461E022C27ECF6A268702FE71627448C396E2C55EE` |
-| 安装包 | `SteamGamePicker\dist\SteamGamePicker_Setup.exe` | 21,676,463 | `D897B5E2DF8832756B95DB5DCF0046B81030AF6E313921C25E360C7D104A45D8` |
+| 可执行文件 | `SteamGamePicker\dist\SteamGamePicker.exe` | 19,995,005 | `22A340CA10D9142C5C48DDD9ABE3BF39841B68931575A00EF73D939B6C0B7207` |
+| 安装包 | `SteamGamePicker\dist\SteamGamePicker_Setup.exe` | 21,690,604 | `6A327017696FD52434EB2BA783C1A297E6C7CDEDE43FC38C1AD66A1FD4D26214` |
 
-> 上表为 **v1.4（含证书信任回退 + 范围可并存 + 结果不被覆盖）** 的产物；
-> 此前版本 `1B8CF558…`（v1.0.0）、`29CFC2DD…`（v1.3）均已被取代，请勿再分发。
+> 上表为 **v1.5（Steam 风格界面）** 的产物；此前 `1B8CF558…`（v1.0.0）、`29CFC2DD…`（v1.3）、
+> `DD6664DD…`（v1.4）均已被取代，请勿再分发。
+> 界面截图存于 `docs/evidence/ui-steam-theme-loaded.png`（已加载未抽签）与
+> `docs/evidence/ui-steam-theme-result.png`（抽签后含详情卡片）。
 
 打包产物自检（`SteamGamePicker.exe --selftest --live --report <文件>`）：
 

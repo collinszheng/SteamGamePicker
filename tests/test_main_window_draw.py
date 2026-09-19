@@ -142,12 +142,12 @@ def test_draw_reveals_winner_in_green_and_updates_button(window: MainWindow) -> 
 def test_final_frame_bounces_then_resets(window: MainWindow) -> None:
     drive_draw(window)
 
-    assert "30" in str(window.rolling_label.cget("font"))
+    assert str(theme.FONT_ROLLING_BOUNCE[1]) in str(window.rolling_label.cget("font"))
     assert window._bounce_job is not None
     window._reset_rolling_font()
     assert window._bounce_job is None
     font = str(window.rolling_label.cget("font"))
-    assert "28" in font and "bold" in font
+    assert str(theme.FONT_ROLLING[1]) in font and "bold" in font
     assert str(window.rolling_label.cget("foreground")) == theme.COLOR_OK
 
 

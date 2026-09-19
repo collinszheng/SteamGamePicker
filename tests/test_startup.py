@@ -11,6 +11,7 @@ from app.config import Config, ConfigStore
 from app.errors import AppError, Err
 from app.models import Game
 from app.state import AppState
+from app.ui import theme
 from app.ui.main_window import MainWindow
 
 STEAMID = "76561198260031749"
@@ -107,7 +108,7 @@ def test_refresh_failure_falls_back_to_offline(root, store: ConfigStore) -> None
     assert window.offline is True
     assert window.state is AppState.OFFLINE
     assert window.status_text().startswith("当前离线，正在使用")
-    assert window.status_color() == "#B8860B"
+    assert window.status_color() == theme.COLOR_WARN
     assert str(window.draw_button.cget("state")) == "normal"
 
 

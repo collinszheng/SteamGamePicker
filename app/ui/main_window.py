@@ -144,6 +144,8 @@ class MainWindow:
 
     # ================================================================= 构建
     def _build(self) -> None:
+        # Windows 原生 ttk 主题不接受自定义配色，这里统一切换到 Steam 深色风格
+        self.style = theme.apply_theme(self.root)
         self.root.title(APP_NAME)
         self.root.geometry(
             self.config.ui.window_geometry or f"{theme.WINDOW_DEFAULT_WIDTH}x{theme.WINDOW_DEFAULT_HEIGHT}"
@@ -151,80 +153,108 @@ class MainWindow:
         self.root.minsize(theme.WINDOW_MIN_WIDTH, theme.WINDOW_MIN_HEIGHT)
         self.root.configure(bg=theme.COLOR_BG)
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.root.bind("<Configure>", self._on_root_configure)
 
-        outer = ttk.Frame(self.root, padding=theme.PAD_OUTER)
+        self._build_header(self.root)  # 顶栏全宽出血，像 Steam 客户端那样
+
+        outer = ttk.Frame(self.root, padding=theme.PAD_OUTER, style=theme.STYLE_FRAME)
         outer.pack(fill="both", expand=True)
         outer.columnconfigure(0, weight=1)
-        outer.rowconfigure(2, weight=1)  # 只有区2 吸收多余高度
+        outer.rowconfigure(1, weight=1)  # 只有区2 吸收多余高度
         self.outer = outer
 
-        self._build_header(outer)
         self._build_identity(outer)
         self._build_pool(outer)
         self._build_draw(outer)
         self._build_details(outer)
 
-    # 区0 顶栏 ---------------------------------------------------------------
-    def _build_header(self, parent: ttk.Frame) -> None:
-        frame = ttk.Frame(parent)
-        frame.grid(row=0, column=0, sticky="ew")
+    # 区0 顶栏（全宽深色条 + Steam 蓝强调线）--------------------------------
+    def _build_header(self, parent: tk.Misc) -> None:
+        bar = ttk.Frame(
+            parent, style=theme.STYLE_HEADER_FRAME, padding=(theme.PAD_OUTER, 6)
+        )
+        bar.pack(fill="x")
+
+        frame = ttk.Frame(bar, style=theme.STYLE_HEADER_FRAME)
+        frame.pack(fill="x")
         frame.columnconfigure(0, weight=1)
 
-        ttk.Label(frame, text=APP_NAME, font=theme.FONT_TITLE).grid(row=0, column=0, sticky="w")
-        self.about_button = ttk.Button(frame, text="关于", command=self.on_about)
+        ttk.Label(frame, text=APP_NAME, style=theme.STYLE_TITLE_LABEL).grid(row=0, column=0, sticky="w")
+        self.about_button = ttk.Button(
+            frame, text="关于", style=theme.STYLE_HEADER_BUTTON, command=self.on_about
+        )
         self.about_button.grid(row=0, column=1, padx=(theme.PAD_TIGHT, 0))
-        self.settings_button = ttk.Button(frame, text="设置", command=self.on_settings)
+        self.settings_button = ttk.Button(
+            frame, text="设置", style=theme.STYLE_HEADER_BUTTON, command=self.on_settings
+        )
         self.settings_button.grid(row=0, column=2, padx=(theme.PAD_TIGHT, 0))
-        self.header = frame
+
+        ttk.Frame(parent, style=theme.STYLE_ACCENT_FRAME, height=theme.HEADER_BAR_HEIGHT).pack(fill="x")
+        self.header = bar
 
     # 区1 身份 ---------------------------------------------------------------
     def _build_identity(self, parent: ttk.Frame) -> None:
-        frame = ttk.Frame(parent, padding=(0, theme.PAD_INNER, 0, 0))
-        frame.grid(row=1, column=0, sticky="ew")
+        frame = ttk.Frame(parent, style=theme.STYLE_FRAME)
+        frame.grid(row=0, column=0, sticky="ew")
         frame.columnconfigure(0, weight=1)
 
         self.identity_var = tk.StringVar(value=self.config.last_steam_id)
-        self.identity_entry = ttk.Entry(frame, textvariable=self.identity_var, font=theme.FONT_BODY)
-        self.identity_entry.grid(row=0, column=0, sticky="ew", ipady=4)
+        self.identity_entry = ttk.Entry(
+            frame, textvariable=self.identity_var, style=theme.STYLE_ENTRY, font=theme.FONT_BODY
+        )
+        self.identity_entry.grid(row=0, column=0, sticky="ew", ipady=2)
         self.identity_entry.bind("<Return>", lambda _event: self.start_load())
 
-        self.load_button = ttk.Button(frame, text="加载游戏库", command=self.on_load_button)
+        self.load_button = ttk.Button(
+            frame, text="加载游戏库", style=theme.STYLE_BUTTON, command=self.on_load_button
+        )
         self.load_button.grid(row=0, column=1, padx=(theme.PAD_INNER, 0))
-        self.refresh_button = ttk.Button(frame, text="刷新", command=lambda: self.start_load(refresh=True))
+        self.refresh_button = ttk.Button(
+            frame, text="刷新", style=theme.STYLE_BUTTON, command=lambda: self.start_load(refresh=True)
+        )
         self.refresh_button.grid(row=0, column=2, padx=(theme.PAD_TIGHT, 0))
 
-        status_row = ttk.Frame(frame)
+        status_row = ttk.Frame(frame, style=theme.STYLE_FRAME)
         status_row.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(theme.PAD_TIGHT, 0))
         status_row.columnconfigure(1, weight=1)
-        self.status_dot = ttk.Label(status_row, text="●", font=theme.FONT_SMALL, foreground=theme.COLOR_MUTED)
+        self.status_dot = ttk.Label(
+            status_row, text="●", style=theme.STYLE_MUTED_LABEL, foreground=theme.COLOR_MUTED
+        )
         self.status_dot.grid(row=0, column=0)
         self.status_label = ttk.Label(
-            status_row, text="", font=theme.FONT_SMALL, foreground=theme.COLOR_MUTED, anchor="w"
+            status_row,
+            text="",
+            style=theme.STYLE_MUTED_LABEL,
+            foreground=theme.COLOR_MUTED,
+            anchor="w",
         )
         self.status_label.grid(row=0, column=1, sticky="ew", padx=(theme.PAD_TIGHT, 0))
-        self.status_actions = ttk.Frame(status_row)
+        self.status_actions = ttk.Frame(status_row, style=theme.STYLE_FRAME)
         self.status_actions.grid(row=0, column=2, sticky="e")
         self.identity_frame = frame
 
     # 区2 范围 ---------------------------------------------------------------
     def _build_pool(self, parent: ttk.Frame) -> None:
-        frame = ttk.Frame(parent, padding=(0, theme.PAD_INNER, 0, 0))
-        frame.grid(row=2, column=0, sticky="nsew")
+        frame = ttk.Frame(parent, style=theme.STYLE_FRAME)
+        frame.grid(row=1, column=0, sticky="nsew")
         frame.columnconfigure(0, weight=1)
         frame.rowconfigure(1, weight=1)
 
-        self.pool_toggle_button = ttk.Button(frame, text="", command=self.toggle_pool_panel)
-        self.pool_toggle_button.grid(row=0, column=0, sticky="w")
+        self.pool_toggle_button = ttk.Button(
+            frame, text="", style=theme.STYLE_LINK_BUTTON, command=self.toggle_pool_panel
+        )
+        self.pool_toggle_button.grid(row=0, column=0, sticky="w", pady=(0, theme.PAD_TIGHT))
 
-        body = ttk.Frame(frame)
-        body.grid(row=1, column=0, sticky="nsew", pady=(theme.PAD_TIGHT, 0))
+        # 列表区做成 Steam 风格的卡片（1px 描边 + 深色底）
+        body_border, body = theme.make_card(frame)
+        body_border.grid(row=1, column=0, sticky="nsew", pady=(theme.PAD_TIGHT, 0))
         body.columnconfigure(0, weight=1)
         body.rowconfigure(2, weight=1)
-        self.pool_body = body
+        self.pool_body = body_border
 
-        preset_row = ttk.Frame(body)
+        preset_row = ttk.Frame(body, style=theme.STYLE_CARD_FRAME)
         preset_row.grid(row=0, column=0, sticky="ew")
-        ttk.Label(preset_row, text="范围", font=theme.FONT_BODY).grid(
+        ttk.Label(preset_row, text="范围", style=theme.STYLE_CARD_MUTED_LABEL).grid(
             row=0, column=0, padx=(0, theme.PAD_TIGHT)
         )
         # 「全部参与」是单选项，点击即取消另外两个快捷筛选；
@@ -235,6 +265,7 @@ class MainWindow:
             text=preset_label(PRESET_ALL),
             value=PRESET_ALL,
             variable=self.range_var,
+            style=theme.STYLE_CARD_RADIO,
             command=self.on_all_clicked,
         )
         self.all_button.grid(row=0, column=1, padx=(0, theme.PAD_INNER))
@@ -244,6 +275,7 @@ class MainWindow:
             preset_row,
             text=preset_label("never_played"),
             variable=self.never_var,
+            style=theme.STYLE_CARD_CHECK,
             command=self.on_filter_clicked,
         )
         self.never_button.grid(row=0, column=2, padx=(0, theme.PAD_INNER))
@@ -253,6 +285,7 @@ class MainWindow:
             preset_row,
             text=preset_label("low_playtime"),
             variable=self.low_var,
+            style=theme.STYLE_CARD_CHECK,
             command=self.on_filter_clicked,
         )
         self.low_button.grid(row=0, column=3, padx=(0, theme.PAD_INNER))
@@ -269,31 +302,42 @@ class MainWindow:
             text=preset_label(PRESET_CUSTOM),
             value=PRESET_CUSTOM,
             variable=self.range_var,
+            style=theme.STYLE_CARD_RADIO,
             state="disabled",
         )
         self.custom_button.grid(row=0, column=4)
 
-        search_row = ttk.Frame(body)
+        search_row = ttk.Frame(body, style=theme.STYLE_CARD_FRAME)
         search_row.grid(row=1, column=0, sticky="ew", pady=(theme.PAD_TIGHT, theme.PAD_TIGHT))
-        search_row.columnconfigure(0, weight=1)
         self.search_var = tk.StringVar()
-        self.search_entry = ttk.Entry(search_row, textvariable=self.search_var, font=theme.FONT_BODY)
-        self.search_entry.grid(row=0, column=0, sticky="ew")
+        # 搜索框独占一行：三个批量按钮的文案带数量（"全选（当前 10 条）"），
+        # 与搜索框同行会在 800px 宽度下横向溢出，把右侧按钮挤出窗口
+        self.search_entry = ttk.Entry(
+            search_row,
+            textvariable=self.search_var,
+            style=theme.STYLE_ENTRY,
+            font=theme.FONT_BODY,
+            width=12,
+        )
+        self.search_entry.grid(row=0, column=0, columnspan=4, sticky="ew")
         self.search_var.trace_add("write", self._on_search_changed)
 
         self.bulk_buttons: dict[str, ttk.Button] = {}
         for index, (mode, command) in enumerate(
             (("all", lambda: self.apply_bulk("all")), ("none", lambda: self.apply_bulk("none")), ("invert", lambda: self.apply_bulk("invert"))),
-            start=1,
         ):
-            button = ttk.Button(search_row, text="", command=command)
-            button.grid(row=0, column=index, padx=(theme.PAD_TIGHT, 0))
+            button = ttk.Button(search_row, text="", style=theme.STYLE_BUTTON, command=command)
+            button.grid(row=1, column=index, sticky="w", padx=(0 if index == 0 else theme.PAD_TIGHT, 0), pady=(theme.PAD_TIGHT, 0))
             self.bulk_buttons[mode] = button
 
-        self.selected_label = ttk.Label(search_row, text="", font=theme.FONT_SMALL, foreground=theme.COLOR_MUTED)
-        self.selected_label.grid(row=0, column=4, padx=(theme.PAD_INNER, 0))
+        self.selected_label = ttk.Label(
+            search_row, text="", style=theme.STYLE_CARD_MUTED_LABEL, foreground=theme.COLOR_MUTED
+        )
+        self.selected_label.grid(
+            row=1, column=3, sticky="w", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0)
+        )
 
-        tree_frame = ttk.Frame(body)
+        tree_frame = ttk.Frame(body, style=theme.STYLE_CARD_FRAME)
         tree_frame.grid(row=2, column=0, sticky="nsew")
         tree_frame.columnconfigure(0, weight=1)
         tree_frame.rowconfigure(0, weight=1)
@@ -303,7 +347,8 @@ class MainWindow:
             columns=("check", "name", "playtime"),
             show="headings",
             selectmode="browse",
-            height=8,
+            height=6,
+            style=theme.STYLE_TREE,
         )
         self.tree.heading("check", text="")
         self.tree.heading("name", text="游戏名", command=lambda: self.sort_by(SORT_NAME))
@@ -311,8 +356,15 @@ class MainWindow:
         self.tree.column("check", width=34, minwidth=34, stretch=False, anchor="center")
         self.tree.column("name", width=380, minwidth=160, stretch=True)
         self.tree.column("playtime", width=110, minwidth=90, stretch=False, anchor="e")
+        # 斑马纹 + 被排除的游戏灰显（Steam 库存列表的观感，也让勾选状态一眼可读）
+        self.tree.tag_configure("even", background=theme.COLOR_CARD)
+        self.tree.tag_configure("odd", background=theme.COLOR_CARD_ALT)
+        self.tree.tag_configure("included", foreground=theme.COLOR_TEXT)
+        self.tree.tag_configure("excluded", foreground=theme.COLOR_MUTED)
         self.tree.grid(row=0, column=0, sticky="nsew")
-        scrollbar = ttk.Scrollbar(tree_frame, orient="vertical", command=self.tree.yview)
+        scrollbar = ttk.Scrollbar(
+            tree_frame, orient="vertical", command=self.tree.yview, style=theme.STYLE_SCROLLBAR
+        )
         scrollbar.grid(row=0, column=1, sticky="ns")
         self.tree.configure(yscrollcommand=scrollbar.set)
         self.tree.bind("<Button-1>", self._on_tree_click)
@@ -324,44 +376,93 @@ class MainWindow:
 
     # 区3 抽签 ---------------------------------------------------------------
     def _build_draw(self, parent: ttk.Frame) -> None:
-        frame = ttk.Frame(parent, padding=(0, theme.PAD_INNER, 0, 0))
-        frame.grid(row=3, column=0, sticky="ew")
+        frame = ttk.Frame(parent, padding=(0, theme.PAD_TIGHT, 0, theme.PAD_TIGHT), style=theme.STYLE_FRAME)
+        frame.grid(row=2, column=0, sticky="ew")
         frame.columnconfigure(0, weight=1)
 
         self.rolling_label = ttk.Label(
             frame,
             text=PLACEHOLDER_ROLLING,
+            style=theme.STYLE_LABEL,
             font=theme.FONT_ROLLING,
             foreground=theme.COLOR_ROLLING,
             anchor="center",
         )
-        self.rolling_label.grid(row=0, column=0, sticky="ew", pady=(theme.PAD_INNER, theme.PAD_INNER))
+        self.rolling_label.grid(row=0, column=0, sticky="ew", pady=(theme.PAD_TIGHT, theme.PAD_TIGHT))
 
-        self.draw_button = ttk.Button(frame, text="抽签", command=self.on_draw, width=16)
+        # 主行动按钮用 Steam 商店的绿色 CTA
+        self.draw_button = ttk.Button(
+            frame,
+            text="抽签",
+            style=theme.STYLE_ACCENT_BUTTON,
+            command=self.on_draw,
+            width=theme.DRAW_BUTTON_WIDTH,
+        )
         self.draw_button.grid(row=1, column=0)
         self.draw_frame = frame
 
     # 区4 结果 ---------------------------------------------------------------
     def _build_details(self, parent: ttk.Frame) -> None:
-        frame = ttk.Frame(parent, padding=(0, theme.PAD_INNER, 0, 0))
-        frame.grid(row=4, column=0, sticky="ew")
-        frame.columnconfigure(1, weight=1)
+        frame = ttk.Frame(parent, style=theme.STYLE_FRAME)
+        frame.grid(row=3, column=0, sticky="ew")
+        frame.columnconfigure(0, weight=1)
 
-        self.cover_label = ttk.Label(frame, text="", anchor="nw")
-        self.cover_label.grid(row=0, column=0, rowspan=4, sticky="nw")
+        border, card = theme.make_card(frame, padding=6)
+        border.grid(row=0, column=0, sticky="ew")
+        card.columnconfigure(1, weight=1)
 
-        self.detail_name = ttk.Label(frame, text="", font=theme.FONT_GAME_NAME, anchor="w")
+        # 封面外再加 1px 描边，像 Steam 的截图框
+        self.cover_box = ttk.Frame(card, style=theme.STYLE_CARD_BORDER_FRAME)
+        self.cover_box.grid(row=0, column=0, rowspan=4, sticky="nw")
+        self.cover_label = ttk.Label(
+            self.cover_box,
+            text="",
+            style=theme.STYLE_CARD_LABEL,
+            anchor="nw",
+            foreground=theme.COLOR_MUTED,
+        )
+        self.cover_label.grid(row=0, column=0, padx=1, pady=1)
+
+        self.detail_name = ttk.Label(
+            card,
+            text="",
+            style=theme.STYLE_CARD_LABEL,
+            font=theme.FONT_GAME_NAME,
+            foreground=theme.COLOR_TEXT_STRONG,
+            anchor="w",
+        )
         self.detail_name.grid(row=0, column=1, sticky="ew", padx=(theme.PAD_INNER, 0))
         self.detail_description = ttk.Label(
-            frame, text=PLACEHOLDER_DETAILS, font=theme.FONT_SMALL, foreground=theme.COLOR_MUTED,
-            anchor="w", justify="left", wraplength=420,
+            card,
+            text=PLACEHOLDER_DETAILS,
+            style=theme.STYLE_CARD_MUTED_LABEL,
+            foreground=theme.COLOR_MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=400,
         )
         self.detail_description.grid(row=1, column=1, sticky="ew", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0))
-        self.detail_meta = ttk.Label(frame, text="", font=theme.FONT_BODY, anchor="w")
+        self.detail_meta = ttk.Label(
+            card,
+            text="",
+            style=theme.STYLE_CARD_LABEL,
+            font=theme.FONT_BODY,
+            foreground=theme.COLOR_ACCENT,
+            anchor="w",
+        )
         self.detail_meta.grid(row=2, column=1, sticky="ew", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0))
-        self.detail_extra = ttk.Label(frame, text="", font=theme.FONT_BODY, anchor="w", foreground=theme.COLOR_MUTED)
+        self.detail_extra = ttk.Label(
+            card,
+            text="",
+            style=theme.STYLE_CARD_LABEL,
+            font=theme.FONT_BODY_BOLD,
+            foreground=theme.COLOR_TEXT_STRONG,
+            anchor="w",
+        )
         self.detail_extra.grid(row=3, column=1, sticky="ew", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0))
-        self.detail_retry_button = ttk.Button(frame, text="重试", command=self.retry_details, width=10)
+        self.detail_retry_button = ttk.Button(
+            card, text="重试", style=theme.STYLE_BUTTON, command=self.retry_details, width=10
+        )
         self.detail_retry_button.grid(
             row=4, column=1, sticky="w", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0)
         )
@@ -382,6 +483,7 @@ class MainWindow:
             error=self.last_error is not None,
         )
         self.set_state(state)
+        self._update_cover_visibility()
 
     def set_state(self, state: AppState) -> None:
         """唯一的状态出口：按 PRD 11.1 设置控件启停。"""
@@ -409,9 +511,11 @@ class MainWindow:
             state="normal" if controls.draw_enabled else "disabled",
         )
         if controls.zone3_hint is not None:
+            # 提示文案用小字；滚动大字只留给抽签过程与结果（26pt 提示会被窗口截断）
             self.rolling_label.configure(
                 text=controls.zone3_hint.text,
                 foreground=theme.color_for_level(controls.zone3_hint.level),
+                font=theme.FONT_SECTION,
             )
         if controls.status_hint is not None:
             self.set_status(controls.status_hint)
@@ -438,6 +542,7 @@ class MainWindow:
                 text=ACTION_LABELS.get(action, action),
                 command=lambda a=action: self.on_status_action(a),
                 width=10,
+                style=theme.STYLE_BUTTON,
             )
             button.grid(row=0, column=index, padx=(theme.PAD_TIGHT, 0))
 
@@ -487,12 +592,29 @@ class MainWindow:
         return status("loaded", total=total, available=pool_size, updated=self.snapshot_display())
 
     # ================================================================= 区2 行为
-    def toggle_pool_panel(self, expand: bool | None = None) -> None:
+    def toggle_pool_panel(self, expand: bool | None = None, *, persist: bool = True) -> None:
         self.pool_panel_expanded = (
             (not self.pool_panel_expanded) if expand is None else bool(expand)
         )
         self._apply_pool_panel_visibility()
-        self._schedule_save()
+        if persist:
+            self._schedule_save()
+
+    def should_auto_collapse(self, height: int) -> bool:
+        """窗口高度不足时是否该收起列表区（PRD 2.3）。"""
+        return bool(height) and height < theme.POOL_AUTO_COLLAPSE_HEIGHT and self.pool_panel_expanded
+
+    def _on_root_configure(self, event: Any) -> None:
+        """窗口太矮时自动收起列表区（PRD 2.3）；这是临时布局适配，不写回配置。"""
+        if getattr(event, "widget", None) is not self.root:
+            return
+        try:
+            if not self.root.winfo_ismapped():
+                return
+        except tk.TclError:  # pragma: no cover - 控件已销毁
+            return
+        if self.should_auto_collapse(int(getattr(event, "height", 0) or 0)):
+            self.toggle_pool_panel(expand=False, persist=False)
 
     def _apply_pool_panel_visibility(self) -> None:
         if self.pool_panel_expanded:
@@ -629,13 +751,25 @@ class MainWindow:
     # 列表渲染 ---------------------------------------------------------------
     def _populate_tree(self) -> None:
         self.tree.delete(*self.tree.get_children())
-        for game in self.filtered:
+        for index, game in enumerate(self.filtered):
             self.tree.insert(
                 "",
                 "end",
                 iid=str(game.appid),
                 values=(self._check_char(game.appid), game.name, format_playtime(game.playtime_forever)),
+                tags=self._row_tags(index, game.appid),
             )
+
+    @staticmethod
+    def _zebra_tag(index: int) -> str:
+        return "even" if index % 2 == 0 else "odd"
+
+    def _state_tag(self, appid: int) -> str:
+        """参与抽签的行用正文色，被排除的行灰显（Steam 库存列表的观感）。"""
+        return "excluded" if appid in self.excluded else "included"
+
+    def _row_tags(self, index: int, appid: int) -> tuple[str, str]:
+        return self._zebra_tag(index), self._state_tag(appid)
 
     def _check_char(self, appid: int) -> str:
         return theme.CHECK_OFF if appid in self.excluded else theme.CHECK_ON
@@ -646,8 +780,12 @@ class MainWindow:
 
     def _refresh_row(self, appid: int) -> None:
         iid = str(appid)
-        if self.tree.exists(iid):
-            self.tree.set(iid, "check", self._check_char(appid))
+        if not self.tree.exists(iid):
+            return
+        self.tree.set(iid, "check", self._check_char(appid))
+        existing = list(self.tree.item(iid, "tags") or ())
+        zebra = next((tag for tag in existing if tag in ("even", "odd")), "even")
+        self.tree.item(iid, tags=(zebra, self._state_tag(appid)))
 
     def _refresh_counts(self) -> None:
         for mode, button in self.bulk_buttons.items():
@@ -1057,6 +1195,17 @@ class MainWindow:
         else:
             self.cover_photo = photo  # 必须持有引用，否则被垃圾回收后图片消失
             self.cover_label.configure(image=photo, text="")
+        self._update_cover_visibility()
+
+    def _update_cover_visibility(self) -> None:
+        """还没抽签时不给封面预留空白，把高度让给游戏列表。"""
+        try:
+            if self.winner is None and self.cover_photo is None:
+                self.cover_box.grid_remove()
+            else:
+                self.cover_box.grid()
+        except tk.TclError:  # pragma: no cover
+            pass
 
     def _show_detail_retry(self, visible: bool) -> None:
         if visible:
