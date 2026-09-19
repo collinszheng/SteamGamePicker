@@ -196,6 +196,8 @@
 
 > 上表为 **v1.5（Steam 风格界面）** 的产物；此前 `1B8CF558…`（v1.0.0）、`29CFC2DD…`（v1.3）、
 > `DD6664DD…`（v1.4）均已被取代，请勿再分发。
+> **v1.6 的改名与中英双语尚未重新打包**（用户选择暂不发版），因此当前 Release 里的安装包
+> 显示名仍是「Steam 游戏抽签器」且只有中文界面；重新打包后需更新本表与校验值。
 > 界面截图存于 `docs/evidence/ui-steam-theme-loaded.png`（已加载未抽签）、
 > `docs/evidence/ui-steam-theme-result.png`（抽签后含详情卡片）与
 > `docs/evidence/ui-english.png`（v1.6 英文界面）。
@@ -260,6 +262,8 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 | :--- | :--- | :--- | :--- |
 | [35431875836](https://github.com/collinszheng/SteamGamePicker/actions/runs/35431875836) | `7433a73` | ❌ 失败 | **有价值的一次失败**：运行器时区为 UTC，暴露了两条把时区写死的断言（期望 `09-19 15:04`，实际 `09-19 07:04`） |
 | [35431965371](https://github.com/collinszheng/SteamGamePicker/actions/runs/35431965371) | `7c1a4fa` | ✅ 通过 | 修复后全部步骤 success；**自检步骤也成功**，说明该运行器具备可用 Tk 桌面会话，界面与布局测试确实在其中执行 |
+| [35432298290](https://github.com/collinszheng/SteamGamePicker/actions/runs/35432298290) | `9c4b424` | ✅ 通过 | 应用更名提交（D11）后仍全绿 |
+| [35432859899](https://github.com/collinszheng/SteamGamePicker/actions/runs/35432859899) | `4eba840` | ✅ 通过 | 中英双语 + 英文 README（D12 / AC-53 / AC-54）通过。**这条最有说服力**：本机开发环境的默认时区与语言都是中文，i18n 的"英文界面不得残留中文"与文档互链检查在**另一台干净机器**上同样成立 |
 
 这次失败带来的实际收获（已记入 CHANGELOG「未发布」）：
 
@@ -268,7 +272,7 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 2. **测试时区无关化**：期望值改为由同一瞬间在本地时区推导，并新增两条与时区无关的不变量测试
    （ISO 往返保持瞬间不变；同一瞬间的不同偏移写法必须显示为同一个本地时间）。
 3. 验证了测试套件可以在**另一台干净机器**上完整跑通（windows-latest），
-   并且 405 → 407 项用例在两台机器、两个时区下结果一致。
+   并且 405 → 407 → 438 项用例在两台机器、两个时区、两种界面语言下结果一致。
 
 > 注意：这次 CI 通过的是**测试套件**，不等同于 AC-43（在干净 Win10/Win11 上安装并走完主流程），
 > 该项仍列在第 6 节待补测。
