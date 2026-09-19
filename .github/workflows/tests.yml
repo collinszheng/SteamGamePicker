@@ -1,0 +1,53 @@
+name: tests
+
+# 每次推送到 main、每个 PR，以及手动触发时运行全部测试
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    name: pytest (Windows / Python 3.12)
+    # 界面测试需要真实 Tk 环境，所以用 Windows 运行器而不是 Linux
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: 运行全部测试
+        run: python -m pytest -q
+
+      - name: 自检（仅在运行器有可用 Tk 桌面会话时执行）
+        shell: pwsh
+        run: |
+          python -c "import tkinter; tkinter.Tk().destroy()" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            python main.py --selftest --report selftest-report.json
+            Get-Content selftest-report.json
+          } else {
+            Write-Output "跳过自检：该运行器没有可用的 Tk 桌面会话"
+          }
+
+      - name: 保存自检报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selftest-report
+          path: selftest-report.json
+          if-no-files-found: ignore
