@@ -1,4 +1,4 @@
-# Steam Game Picker
+# <img src="docs/evidence/icon-256.png" width="44" alt="应用图标"> Steam Game Picker
 
 [English](README.en.md) | **简体中文**
 
@@ -64,7 +64,7 @@ python main.py
 ## 运行测试
 
 ```powershell
-python -m pytest        # 438 项
+python -m pytest        # 461 项
 ```
 
 测试覆盖纯逻辑（ID 解析、预设计算、缓存 TTL）、网络层契约（脱机样本模拟 Steam 的
@@ -79,6 +79,12 @@ ISCC.exe packaging\installer.iss                                   # 生成 dist
 
 安装包特性：非管理员权限即可安装、桌面快捷方式可选、开始菜单项、安装完成后可选立即运行、
 支持静默安装（`/VERYSILENT`）、卸载时询问是否保留配置（默认保留）。
+
+应用图标由脚本生成（改配色或换图案后重新生成即可，无需手工绘图）：
+
+```powershell
+python tools\make_icon.py      # 重写 assets\app.ico，并刷新 docs\evidence\icon-preview.png
+```
 
 打包产物自检：
 
@@ -105,7 +111,7 @@ SteamGamePicker/
 │  ├─ i18n.py               中英文文案表
 │  ├─ state.py              状态机与控件启停映射
 │  └─ ui/                   主窗口、动画、设置窗口、主题
-├─ tests/                   438 项 pytest（含 Steam 响应样本 fixtures）
+├─ tests/                   461 项 pytest（含 Steam 响应样本 fixtures）
 ├─ packaging/               PyInstaller spec 与 Inno Setup 脚本
 ├─ tools/                   实测与图标生成脚本
 └─ docs/                    PRD、开发计划、验收记录
@@ -117,7 +123,7 @@ SteamGamePicker/
 | :--- | :--- |
 | [产品需求文档](docs/PRD.md) | 目标、页面结构、模块数据与操作、本地数据要求、必做与不做、验收标准 |
 | [开发计划](docs/DEV_PLAN.md) | M0–M8 任务分解、接口契约、日程与执行结果 |
-| [验收记录](docs/ACCEPTANCE.md) | AC-01 ~ AC-52 逐条结果与证据、实现偏差说明、待补测清单 |
+| [验收记录](docs/ACCEPTANCE.md) | AC-01 ~ AC-55 逐条结果与证据、实现偏差说明、待补测清单 |
 
 ## 隐私与安全
 

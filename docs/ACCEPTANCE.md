@@ -2,19 +2,19 @@
 
 | 项目 | 内容 |
 | :--- | :--- |
-| 依据文档 | [`PRD.md`](PRD.md) v1.6、[`DEV_PLAN.md`](DEV_PLAN.md) v1.0 |
+| 依据文档 | [`PRD.md`](PRD.md) v1.7、[`DEV_PLAN.md`](DEV_PLAN.md) v1.0 |
 | 代码版本 | v1.0.0（本仓库） |
 | 验收日期 | 2026-09-19 |
 | 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3（Inno 未随附中文语言包） |
-| 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格；v1.6（D11/D12）应用更名为 Steam Game Picker + 中英双语界面与英文 README |
-| 自动化测试 | **438 项全部通过**（`python -m pytest`）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
+| 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格；v1.6（D11/D12）应用更名为 Steam Game Picker + 中英双语界面与英文 README；v1.7（D13）图标改为 Steam 风格骰子 |
+| 自动化测试 | **461 项全部通过**（`python -m pytest`）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
 | 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（用用户提供的 SteamID64 与密钥，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/<SteamID64>` → **61 款游戏，加载 0.55 秒**；账号矩阵中"非公开 / 空库 / 无效 Key"三项待提供对应账号 |
 
 ## 0. 结论摘要
 
 | 状态 | 数量 | 说明 |
 | :--- | :--- | :--- |
-| ✅ 通过 | 48 | 有自动化测试或实测证据 |
+| ✅ 通过 | 49 | 有自动化测试或实测证据 |
 | ⚠️ 部分通过 | 3 | AC-36（控件重叠需人工目视）、AC-37（真实按键事件）、AC-43 之外的设备相关项见下行 |
 | ⏸ 待凭据 / 待设备 | 3 | AC-06 / AC-07 / AC-08 中需要"非公开 / 空库 / 无效 Key"的场景；AC-43 的干净 Win10 机器 |
 | ❌ 未通过 | 0 | — |
@@ -144,6 +144,12 @@
 | AC-53 中英双语界面 | ✅ | `tests/test_i18n.py`（19 项）：中英键集合完全一致（`test_translation_keys_are_in_sync`）、无空译文、占位符一致、缺失键渲染为 `⟦key⟧` 而不是抛异常、非法语言值回落中文；**英文界面不得残留中文**（`test_english_main_window_has_no_cjk` / `test_english_dialogs_have_no_cjk`，逐控件扫描文本，白名单仅放语言选择器里的「中文」自名）；中文文案与改版前**逐字节一致**（`test_chinese_strings_are_unchanged`，保证既有 407 项断言仍是回归网）；切换语言后已加载的库 / 勾选 / 搜索词 / 中签结果 / 列表展开态**全部保留**（`test_language_switch_preserves_loaded_state`）；设置保存后立即生效并可跨重启持久化（`test_settings_dialog_persists_language`、`test_language_survives_restart`）；英文下状态行、空池提示、缓存时间与详情字段均为英文（`test_english_status_messages`、`test_english_cache_and_details`）。**界面证据**：`docs/evidence/ui-english.png`（英文界面截屏） |
 | AC-54 双语 README | ✅ | `tests/test_docs.py`（12 项）：`README.md`（中文，GitHub 默认渲染）与 `README.en.md`（英文）**互相链接**且切换链接位于正文前 12 行内；两版都必须包含安装包下载入口（指向 `releases/latest`）；`README.md` 必须为中文而 `README.en.md` 必须为英文（按 CJK 字符占比判定）；6 个 markdown 文件的全部**相对链接可达**（`test_relative_links_resolve`，防止改名后链接失效）；两版功能清单条目数一致（防止只更新单边） |
 
+### 9.14 v1.7 图标重做（D13）
+
+| 编号 | 结果 | 证据 |
+| :--- | :--- | :--- |
+| AC-55 Steam 风格骰子图标 | ✅ | `tests/test_icon.py`（21 项）：ICO 必须含 16/24/32/48/64/128/256 七个尺寸且逐帧校验"圆角外全透明"（不带 alpha 会在任务栏上出现黑角）；**按像素采样**验证 Steam 深蓝徽章（四角暗且蓝 > 红）、浅色骰子面、深蓝点数与上沿的 Steam 蓝描边（不是只看源码里写了什么颜色）；小尺寸必须单独渲染——断言 16 像素"单独出图"与"缩小 256 图"逐字节不同，且点数规则为 ≥48 用 5 点、以下用 3 点；**生成过程不得出现 `ImageFont` / `draw.text` / `"抽"` 字面量**（旧图标是中文单字，更名后不应回流）；颜色必须从 `app/ui/theme.py` 取（唯一出处）；打包脚本（spec 与 .iss）必须引用同一个 `app.ico`。**视觉证据**：`docs/evidence/icon-preview.png`（深色/浅色背景真实像素 + 16/24/32/48 放大检查）、`docs/evidence/icon-256.png`；源码运行的窗口图标经**带标题栏截图人工核对**（`tools/capture_ui.py` 第 4 个参数） |
+
 ---
 
 ## 2. 与 PRD 的实现偏差（全部为有意为之，已记录）
@@ -184,6 +190,8 @@
 | 14 | **【用户要求改名】** 原名「Steam 游戏抽签器」不好听 | 显示名统一改为 **Steam Game Picker**（窗口标题 / 顶栏 / 关于窗 / 安装包与快捷方式）；**配置目录与 exe 名仍为 `SteamGamePicker`**，老用户配置零迁移（D11） |
 | 15 | **【用户要求】** 需要英文界面与英文 README | 文案抽到 `app/i18n.py`（含错误、状态、按钮、表头、设置、关于共 ~90 个键），设置窗口新增语言选项（默认中文，保存即生效并持久化）；新增 `README.en.md` 与中文版互相链接；补 19 项 i18n 测试（含"英文界面不得残留中文"）与 12 项文档测试（AC-53 / AC-54） |
 | 16 | 国际化的首版把「英文界面含 CJK」判定写得太宽，误报语言选择器里的「中文」 | 白名单化 `LANGUAGE_NAMES` 的取值本身，其余任何控件文本含 CJK 即失败（保持严格，避免以后漏译被放过） |
+| 17 | **【截屏自查发现】** 证据截图工具没换算 DPI：程序未做 DPI 感知，Windows 按 125% 缩放窗口，而 Tk 的 `winfo_*` 是逻辑像素、`ImageGrab` 抓的是物理像素 | 抓图前按「物理屏宽 ÷ 逻辑屏宽」换算 bbox。此前所有界面证据图其实只拍到了窗口左上角约 80%，且整体偏移十几像素；已全部重新抓取（现为 1000×750 物理像素） |
+| 18 | 由 17 引出的疑问："英文文案更长，会不会在 800×600 下越界？" | 用 Tk 几何数据实测**没有越界**；顺手把 AC-52 的"逐控件越界检测"参数化到英文界面（`test_no_widget_overflows_in_english`），把这个可能性彻底钉住 |
 
 ---
 
@@ -218,7 +226,7 @@
 ## 5. 复现命令
 
 ```powershell
-# 全量测试（438 项）
+# 全量测试（461 项）
 cd SteamGamePicker
 python -m pytest
 
@@ -272,7 +280,7 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 2. **测试时区无关化**：期望值改为由同一瞬间在本地时区推导，并新增两条与时区无关的不变量测试
    （ISO 往返保持瞬间不变；同一瞬间的不同偏移写法必须显示为同一个本地时间）。
 3. 验证了测试套件可以在**另一台干净机器**上完整跑通（windows-latest），
-   并且 405 → 407 → 438 项用例在两台机器、两个时区、两种界面语言下结果一致。
+   并且 405 → 407 → 438 → 461 项用例在两台机器、两个时区、两种界面语言下结果一致。
 
 > 注意：这次 CI 通过的是**测试套件**，不等同于 AC-43（在干净 Win10/Win11 上安装并走完主流程），
 > 该项仍列在第 6 节待补测。

@@ -1,6 +1,10 @@
 """渲染主窗口并截图，供人工核对界面（开发辅助脚本，不参与打包）。
 
-用法：python tools/capture_ui.py docs/evidence/ui-steam-theme.png
+用法::
+
+    python tools/capture_ui.py 抽签后.png [抽签前.png] [英文界面.png] [带标题栏.png]
+
+第 4 个参数会把标题栏一起抓进来，用来核对窗口图标这类边框上的东西。
 """
 
 from __future__ import annotations
@@ -61,6 +65,24 @@ def build_window(root: tk.Tk, store: ConfigStore) -> MainWindow:
     return window
 
 
+def _dpi_scale(root: tk.Tk) -> float:
+    """屏幕物理像素 ÷ Tk 逻辑像素。
+
+    本程序没做 DPI 感知（Windows 会把窗口整体放大），Tk 的 ``winfo_*`` 是逻辑像素，
+    而 ``ImageGrab`` 抓的是物理像素。不换算的话，在 125% 缩放的屏幕上
+    截图只会拍到窗口左上角的 80%，而且整体偏移十几像素。
+    """
+    logical = root.winfo_screenwidth()
+    if logical <= 0:  # pragma: no cover - 防御
+        return 1.0
+    return round(ImageGrab.grab().width / logical, 4)
+
+
+def _physical(root: tk.Tk, box: tuple[float, float, float, float]) -> tuple[int, int, int, int]:
+    scale = _dpi_scale(root)
+    return tuple(round(value * scale) for value in box)  # type: ignore[return-value]
+
+
 def grab(root: tk.Tk, out: Path) -> None:
     root.attributes("-topmost", True)
     root.update_idletasks()
@@ -70,8 +92,22 @@ def grab(root: tk.Tk, out: Path) -> None:
     # 只抓"客户区"：winfo_rootx/rooty 即客户区左上角，避免猜标题栏高度导致取景偏移
     x, y = root.winfo_rootx(), root.winfo_rooty()
     width, height = root.winfo_width(), root.winfo_height()
-    ImageGrab.grab(bbox=(x, y, x + width, y + height)).save(out)
-    print(f"截图已保存：{out}（{out.stat().st_size} 字节，{width}x{height}）")
+    ImageGrab.grab(bbox=_physical(root, (x, y, x + width, y + height))).save(out)
+    print(f"截图已保存：{out}（{out.stat().st_size} 字节，{width}x{height} 逻辑像素）")
+
+
+def grab_framed(root: tk.Tk, out: Path) -> None:
+    """连标题栏一起抓（客户区之外），用来核对窗口图标/标题这类边框上的东西。"""
+    root.attributes("-topmost", True)
+    root.update_idletasks()
+    root.update()
+    time.sleep(0.6)
+    root.update()
+    x, y = root.winfo_rootx(), root.winfo_rooty()
+    width, height = root.winfo_width(), root.winfo_height()
+    box = (x - 24, y - 64, x + width + 24, y + height + 24)
+    ImageGrab.grab(bbox=_physical(root, box)).save(out)
+    print(f"带边框截图已保存：{out}（{out.stat().st_size} 字节）")
 
 
 def report(root: tk.Tk) -> None:
@@ -93,11 +129,12 @@ def report(root: tk.Tk) -> None:
             )
 
 
-def main(target: str, second: str | None = None, english: str | None = None) -> int:
+def main(target: str, second: str | None = None, english: str | None = None, framed: str | None = None) -> int:
     out = Path(target).resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
     out2 = Path(second).resolve() if second else None
     out3 = Path(english).resolve() if english else None
+    out4 = Path(framed).resolve() if framed else None
     with tempfile.TemporaryDirectory() as tmp:
         store = ConfigStore(Path(tmp) / "appdata")
         store.ensure_dirs()
@@ -118,6 +155,8 @@ def main(target: str, second: str | None = None, english: str | None = None) -> 
             window._on_anim_frame(window.winner.name, True)
             window.render_details(DETAILS)
             window.refresh_state()
+            if out4 is not None:
+                grab_framed(root, out4)
             grab(root, out3)
             window.config.language = "zh"
             window.on_settings_saved()

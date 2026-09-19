@@ -18,6 +18,7 @@ from tkinter import ttk
 import pytest
 
 from app.config import Config, ConfigStore
+from app.i18n import LANG_EN, LANG_ZH, set_language
 from app.models import Game
 from app.state import AppState
 from app.ui import theme
@@ -248,23 +249,15 @@ def test_cover_placeholder_is_hidden_until_a_result(window: MainWindow) -> None:
     assert str(window.cover_label.cget("text")) == "（无封面）"
 
 
-@pytest.mark.parametrize(
-    ("width", "height"),
-    [(theme.WINDOW_DEFAULT_WIDTH, theme.WINDOW_DEFAULT_HEIGHT), (theme.WINDOW_MIN_WIDTH, theme.WINDOW_MIN_HEIGHT)],
-)
-def test_no_widget_overflows_the_window(window: MainWindow, width: int, height: int) -> None:
-    """默认 800×600 与最小 640×480 下，任何控件都不得越出窗口边界。
-
-    改版实测教训：批量按钮与搜索框同行时会把行撑宽，右侧按钮被窗口裁掉——
-    这类问题肉眼容易漏，用 Tk 自己的几何数据判定最可靠。
-    """
+def _overflow_offenders(window: MainWindow, width: int, height: int) -> tuple[int, list[str]]:
+    """在当前窗口尺寸下逐控件判定越界，返回 (受检控件数, 越界描述)。"""
     window.root.geometry(f"{width}x{height}")
     window.root.deiconify()  # 需要真实映射才能取得几何数据
     window.root.update_idletasks()
     window.root.update()
 
     origin_x, origin_y = window.root.winfo_rootx(), window.root.winfo_rooty()
-    offenders = []
+    offenders: list[str] = []
     checked = 0
     for widget in _walk(window.root):
         if widget is window.root or not widget.winfo_ismapped():
@@ -277,8 +270,49 @@ def test_no_widget_overflows_the_window(window: MainWindow, width: int, height: 
             offenders.append(f"{widget.winfo_class()} right={right} bottom={bottom}")
 
     window.root.withdraw()
+    return checked, offenders
+
+
+@pytest.mark.parametrize(
+    ("width", "height"),
+    [(theme.WINDOW_DEFAULT_WIDTH, theme.WINDOW_DEFAULT_HEIGHT), (theme.WINDOW_MIN_WIDTH, theme.WINDOW_MIN_HEIGHT)],
+)
+def test_no_widget_overflows_the_window(window: MainWindow, width: int, height: int) -> None:
+    """默认 800×600 与最小 640×480 下，任何控件都不得越出窗口边界。
+
+    改版实测教训：批量按钮与搜索框同行时会把行撑宽，右侧按钮被窗口裁掉——
+    这类问题肉眼容易漏，用 Tk 自己的几何数据判定最可靠。
+    """
+    checked, offenders = _overflow_offenders(window, width, height)
+
     assert checked >= 20, f"只检查到 {checked} 个控件，窗口可能没真正映射，测试无意义"
     assert not offenders, f"{width}x{height} 下有控件越界：{offenders}"
+
+
+@pytest.mark.parametrize(
+    ("width", "height"),
+    [(theme.WINDOW_DEFAULT_WIDTH, theme.WINDOW_DEFAULT_HEIGHT), (theme.WINDOW_MIN_WIDTH, theme.WINDOW_MIN_HEIGHT)],
+)
+def test_no_widget_overflows_in_english(root, store: ConfigStore, width: int, height: int) -> None:
+    """英文文案普遍更长（Select none / Never played / Load Library…），同样不得越界。
+
+    这个用例是被"截屏自查"逼出来的：英文界面在第一版截图里看着像越界，
+    查下来是截图工具没换算 DPI；顺手补上这条测试，把可能性彻底排掉。
+    """
+    set_language(LANG_EN)
+    instance = MainWindow(root, store=store, config=Config(api_key=KEY))
+    instance.set_games(
+        [
+            Game(appid=1, name="Alpha Adventure", playtime_forever=0),
+            Game(appid=2, name="Beta Shooter", playtime_forever=30),
+            Game(appid=3, name="Gamma Simulation", playtime_forever=5000),
+        ]
+    )
+    checked, offenders = _overflow_offenders(instance, width, height)
+    set_language(LANG_ZH)
+
+    assert checked >= 20, f"只检查到 {checked} 个控件，窗口可能没真正映射，测试无意义"
+    assert not offenders, f"{width}x{height} 英文界面有控件越界：{offenders}"
 
 
 def test_pick_font_family_returns_installed_family(root) -> None:

@@ -73,7 +73,7 @@ from app.state import (
     infer_state,
 )
 from app.steamid import parse_input
-from app.ui import theme
+from app.ui import appicon, theme
 from app.ui.animator import BOUNCE_MS, DrawAnimator
 from app.ui.settings_dialog import AboutDialog, SettingsDialog
 
@@ -159,6 +159,7 @@ class MainWindow:
         )
         self.root.minsize(theme.WINDOW_MIN_WIDTH, theme.WINDOW_MIN_HEIGHT)
         self.root.configure(bg=theme.COLOR_BG)
+        appicon.apply_window_icon(self.root)  # 源码运行时也显示应用图标（PRD D13）
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root.bind("<Configure>", self._on_root_configure)
 
