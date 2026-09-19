@@ -299,6 +299,7 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 | [35432859899](https://github.com/collinszheng/SteamGamePicker/actions/runs/35432859899) | `4eba840` | ✅ 通过 | 中英双语 + 英文 README（D12 / AC-53 / AC-54）通过。**这条最有说服力**：本机开发环境的默认时区与语言都是中文，i18n 的"英文界面不得残留中文"与文档互链检查在**另一台干净机器**上同样成立 |
 | [35432941223](https://github.com/collinszheng/SteamGamePicker/actions/runs/35432941223) | `ccde79a` | ✅ 通过 | 验收记录补记（纯文档） |
 | [35433584762](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433584762) | `9cb7721` | ✅ 通过 | 图标重做（D13 / AC-55）通过，461 项。图标测试按像素采样判定配色与小尺寸简化，因此在**另一台机器**上重跑同样成立 |
+| [35433711249](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433711249) | `75860d7` | ✅ 通过 | 打包链路实测与产物校验值补记（纯文档） |
 
 这次失败带来的实际收获（已记入 CHANGELOG「未发布」）：
 
