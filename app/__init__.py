@@ -6,6 +6,6 @@ from __future__ import annotations
 APP_NAME = "Steam Game Picker"
 #: 纯 ASCII 名称：用于目录名与可执行文件名，改名时保持不变
 APP_NAME_EN = "SteamGamePicker"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.0.1"
 
 __all__ = ["APP_NAME", "APP_NAME_EN", "APP_VERSION"]

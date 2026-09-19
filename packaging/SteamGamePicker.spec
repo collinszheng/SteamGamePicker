@@ -13,6 +13,14 @@ from pathlib import Path
 
 ROOT = Path(SPECPATH).parent  # noqa: F821 - SPECPATH 由 PyInstaller 注入
 
+# 版本资源（文件属性 → 详细信息）由脚本从 app.APP_VERSION 生成，避免多处各写一份
+import sys
+
+sys.path.insert(0, str(ROOT / "tools"))
+import version_info  # noqa: E402
+
+VERSION_FILE = version_info.write(ROOT / "build" / "version_info.txt")
+
 a = Analysis(  # noqa: F821
     [str(ROOT / "main.py")],
     pathex=[str(ROOT)],
@@ -42,5 +50,5 @@ exe = EXE(  # noqa: F821
     console=False,
     disable_windowed_traceback=False,
     icon=str(ROOT / "assets" / "app.ico"),
-    version=None,
+    version=str(VERSION_FILE),
 )

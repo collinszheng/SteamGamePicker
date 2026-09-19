@@ -1,20 +1,20 @@
-# Steam Game Picker · v1.0.0 验收记录
+# Steam Game Picker · v1.0.1 验收记录
 
 | 项目 | 内容 |
 | :--- | :--- |
-| 依据文档 | [`PRD.md`](PRD.md) v1.7、[`DEV_PLAN.md`](DEV_PLAN.md) v1.0 |
-| 代码版本 | v1.0.0（本仓库） |
+| 依据文档 | [`PRD.md`](PRD.md) v1.8、[`DEV_PLAN.md`](DEV_PLAN.md) v1.0 |
+| 代码版本 | v1.0.1（本仓库，已发布 [Release v1.0.1](https://github.com/collinszheng/SteamGamePicker/releases/tag/v1.0.1)） |
 | 验收日期 | 2026-09-19 |
 | 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3（Inno 未随附中文语言包） |
-| 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格；v1.6（D11/D12）应用更名为 Steam Game Picker + 中英双语界面与英文 README；v1.7（D13）图标改为 Steam 风格骰子 |
-| 自动化测试 | **461 项全部通过**（`python -m pytest`）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
-| 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（用用户提供的 SteamID64 与密钥，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/<SteamID64>` → **61 款游戏，加载 0.55 秒**；账号矩阵中"非公开 / 空库 / 无效 Key"三项待提供对应账号 |
+| 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格；v1.6（D11/D12）应用更名为 Steam Game Picker + 中英双语界面与英文 README；v1.7（D13）图标改为 Steam 风格骰子；v1.0.1 发布（exe 版本资源 + 覆盖升级清理旧名快捷方式） |
+| 自动化测试 | **477 项全部通过**（`python -m pytest`）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
+| 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（v1.5 时期用用户提供的 SteamID64 与密钥实测，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/<SteamID64>` → **61 款游戏，加载 0.55 秒**。**v1.0.1 发布当天的复测未能进行**：本机网络到 Steam 全线返回 502/503/504（同一时刻 GitHub 可达，程序侧 `live_api` 如实报 `network`），详见 9.15；账号矩阵中"非公开 / 空库 / 无效 Key"三项仍待提供对应账号 |
 
 ## 0. 结论摘要
 
 | 状态 | 数量 | 说明 |
 | :--- | :--- | :--- |
-| ✅ 通过 | 49 | 有自动化测试或实测证据 |
+| ✅ 通过 | 50 | 有自动化测试或实测证据 |
 | ⚠️ 部分通过 | 3 | AC-36（控件重叠需人工目视）、AC-37（真实按键事件）、AC-43 之外的设备相关项见下行 |
 | ⏸ 待凭据 / 待设备 | 3 | AC-06 / AC-07 / AC-08 中需要"非公开 / 空库 / 无效 Key"的场景；AC-43 的干净 Win10 机器 |
 | ❌ 未通过 | 0 | — |
@@ -104,7 +104,7 @@
 | 编号 | 结果 | 证据 |
 | :--- | :--- | :--- |
 | AC-40 非管理员安装 | ✅ | **实测**：以受限令牌（`runas /trustlevel:0x20000`）安装成功，`install_exit=0`，安装到 `%LOCALAPPDATA%\Programs\SteamGamePicker`，安装后 exe 自检 `exit=0`，卸载 `exit=0` |
-| AC-41 快捷方式 | ✅ | **实测**（v1.0.0 安装包）：桌面快捷方式存在，开始菜单目录内含应用与卸载两个快捷方式。**注**：应用已更名为 Steam Game Picker（见 CHANGELOG「未发布」），快捷方式与卸载项名称随之变化，需在下一次打包安装后复核 |
+| AC-41 快捷方式 | ✅ | **实测**（v1.0.0 安装包）：桌面快捷方式存在，开始菜单目录内含应用与卸载两个快捷方式。**更名后的复核已完成**：v1.0.1 安装包实测得到「Steam Game Picker」目录 + 新名桌面快捷方式，并且从 v1.0.0 覆盖升级时旧名快捷方式会被清理（见 9.15 / AC-56） |
 | AC-42 卸载保留配置 | ✅ | **实测**：静默卸载后安装目录已删除、`%APPDATA%\SteamGamePicker` 保留；交互式卸载会弹"是否同时删除配置与缓存"（默认"否"） |
 | AC-43 干净 Win10 + Win11 | ⏸ | 本机（Win11 10.0.26300）安装→运行→卸载全流程通过；**干净 Win10 机器待补测** |
 
@@ -150,6 +150,18 @@
 | :--- | :--- | :--- |
 | AC-55 Steam 风格骰子图标 | ✅ | `tests/test_icon.py`（21 项）：ICO 必须含 16/24/32/48/64/128/256 七个尺寸且逐帧校验"圆角外全透明"（不带 alpha 会在任务栏上出现黑角）；**按像素采样**验证 Steam 深蓝徽章（四角暗且蓝 > 红）、浅色骰子面、深蓝点数与上沿的 Steam 蓝描边（不是只看源码里写了什么颜色）；小尺寸必须单独渲染——断言 16 像素"单独出图"与"缩小 256 图"逐字节不同，且点数规则为 ≥48 用 5 点、以下用 3 点；**生成过程不得出现 `ImageFont` / `draw.text` / `"抽"` 字面量**（旧图标是中文单字，更名后不应回流）；颜色必须从 `app/ui/theme.py` 取（唯一出处）；打包脚本（spec 与 .iss）必须引用同一个 `app.ico`。**链路实测**：用新图标完整跑通 PyInstaller 与 Inno Setup，并把两个产物里的图标抽出来核对，均为骰子图标（见第 4 节）。**视觉证据**：`docs/evidence/icon-preview.png`（深色/浅色背景真实像素 + 16/24/32/48 放大检查）、`docs/evidence/icon-256.png`；源码运行的窗口图标经**带标题栏截图人工核对**（`tools/capture_ui.py` 第 4 个参数） |
 
+### 9.15 v1.8 覆盖升级（AC-56）
+
+| 编号 | 结果 | 证据 |
+| :--- | :--- | :--- |
+| AC-56 旧版本覆盖升级 | ✅ | **真机实测**（本机 Windows 11，全部用发布产物，非源码）：① 干净状态静默安装**已发布的 v1.0.0 安装包** → 注册表 `Steam 游戏抽签器 1.0.0`、开始菜单目录「Steam 游戏抽签器」含 2 个快捷方式、桌面快捷方式为旧名；② 直接运行 **v1.0.1 安装包**覆盖升级 → 注册表变为 `Steam Game Picker 1.0.1`、安装目录沿用 `%LOCALAPPDATA%\Programs\SteamGamePicker`、开始菜单只剩「Steam Game Picker」一个目录且只有应用与卸载两个快捷方式、桌面快捷方式变为新名、exe 文件属性显示 `1.0.1.0`，**`config.json` 的 SHA256 前后完全一致**；③ 静默卸载 → 注册表项与安装目录清空、快捷方式清空，**配置目录（config.json / cache / logs）原样保留**；④ 再次安装 v1.0.1 并跑 `--selftest`（`docs/evidence/selftest-live-v101-installed.json`，`version: "1.0.1"`、`frozen: true`、`tk_ok/pillow_ok/requests_ok/truststore_ok: true`）。回归防线：`tests/test_release.py` 里 5 项断言锁住安装脚本的升级行为（`UsePreviousAppDir=yes`、`UsePreviousGroup=no`、`[InstallDelete]` 清理旧名目录与旧桌面快捷方式、桌面任务不得带 `checkedonce`），改动被误删会立刻失败 |
+
+> **联网项说明**：本次复测时本机网络到 Steam 全线不可达（`api.steampowered.com` 504、
+> `store.steampowered.com` 503、`steamcommunity.com` 502），而同一时刻 GitHub API 正常（200）。
+> 因此 v1.0.1 的"真实账号拉库"未能在发布当天重跑；该链路在 v1.5 时期已实测通过
+> （61 款游戏、0.55 秒），契约层另有脱机样本测试全程覆盖。网络恢复后可执行
+> `python tools/live_check.py`（设置 `STEAM_API_KEY` 与 `SGP_PUBLIC_ID`）补跑，退出码 0 即通过。
+
 ---
 
 ## 2. 与 PRD 的实现偏差（全部为有意为之，已记录）
@@ -163,7 +175,7 @@
 | 5 | 详情请求期间隐藏 [重试] 按钮 | 防止连点重复提交（PRD 未规定，属交互补强） |
 | 6 | 缓存清理严格守住 200 MB 上限：极端情况下（上限小到连快照都装不下）最新快照也会被清理 | PRD 6.4 要求"缓存总量上限"；最新快照天然是 mtime 最新的文件，正常规模下必然留到最后 |
 | 7 | 安装向导界面为英文 | Inno Setup 6.7.3 官方未随附简体中文语言包（`packaging/ChineseSimplified.isl` 若存在则脚本会自动切换为中文）；应用本身界面全中文，不受影响 |
-| 8 | exe 未嵌入版本资源、未做代码签名 | PRD 未强制要求；代码签名需购买证书（PRD 风险表已列，SmartScreen 可能提示） |
+| 8 | exe 未做代码签名 | 代码签名需购买证书（PRD 风险表已列，SmartScreen 可能提示）。**版本资源已在 v1.0.1 补上**（文件属性里能看产品名、版本 1.0.1 与版权），由 `tools/version_info.py` 从 `app.APP_VERSION` 生成，不再各写一份 |
 | 9 | 额外新增文件 | `app/cancellation.py`、`app/state.py`、`app/images.py`、`app/i18n.py`、`app/ui/animator.py`、`tools/`（这是把 PRD 可维护性要求与验收要求落地的必要补充，行为不超出 PRD） |
 | 10 | 语言选择器里的语言名用**本族写法**呈现（`中文` / `English`），不随界面语言翻译 | 这是语言选择器的通行做法：界面已经是英文时若把「中文」显示成 `Chinese`，看不懂英文的用户反而找不到回中文的入口。因此该项是唯一允许在英文界面出现 CJK 的地方，并在测试中显式白名单化（`test_english_main_window_has_no_cjk`） |
 | 11 | 界面语言是**进程级全局状态**而不是逐控件传入 | 与 Tk 的控件树构建方式匹配（`rebuild_ui` 按语言整体重建），避免几百处构造参数透传；纯逻辑模块（`steamid`/`pool`/`models`/`config`/`cache`）不感知语言，仅经由 `t()` 取文案，仍然可无界面单测 |
@@ -192,49 +204,57 @@
 | 16 | 国际化的首版把「英文界面含 CJK」判定写得太宽，误报语言选择器里的「中文」 | 白名单化 `LANGUAGE_NAMES` 的取值本身，其余任何控件文本含 CJK 即失败（保持严格，避免以后漏译被放过） |
 | 17 | **【截屏自查发现】** 证据截图工具没换算 DPI：程序未做 DPI 感知，Windows 按 125% 缩放窗口，而 Tk 的 `winfo_*` 是逻辑像素、`ImageGrab` 抓的是物理像素 | 抓图前按「物理屏宽 ÷ 逻辑屏宽」换算 bbox。此前所有界面证据图其实只拍到了窗口左上角约 80%，且整体偏移十几像素；已全部重新抓取（现为 1000×750 物理像素） |
 | 18 | 由 17 引出的疑问："英文文案更长，会不会在 800×600 下越界？" | 用 Tk 几何数据实测**没有越界**；顺手把 AC-52 的"逐控件越界检测"参数化到英文界面（`test_no_widget_overflows_in_english`），把这个可能性彻底钉住 |
+| 19 | **【发布前实测发现】** 应用更名（D11）后覆盖升级：开始菜单目录仍叫「Steam 游戏抽签器」，里面新旧两套快捷方式并存（4 个），桌面快捷方式也还是旧名 | 安装脚本加 `UsePreviousGroup=no` + `[InstallDelete]` 清掉旧名目录与旧桌面快捷方式；桌面快捷方式任务去掉 `checkedonce`（否则升级时默认不勾，旧快捷方式被清后用户桌面上会什么都不剩）。**已实测**：干净装 1.0.0 → 覆盖装 1.0.1 后只剩一个新名目录（2 个快捷方式）+ 新名桌面快捷方式，配置零改动（AC-56） |
+| 20 | 发布当天的联网复测跑不通：`live_api` 报 `network`，本机到 Steam 全线 502/503/504 | **非程序缺陷**：同一时刻 `api.github.com` 经同一路径返回 200，而 `api.steampowered.com` / `store.steampowered.com` / `steamcommunity.com` 分别返回 504 / 503 / 502（代理直连两种方式都一样），属本机网络到 Steam 的链路问题。程序侧如实报错、未误判为证书问题，也未重试到失控（详见 9.15） |
 
 ---
 
 ## 4. 产出物与校验值
 
-**已发布**（Release v1.0.0 的安装包，界面为 v1.5 Steam 风格、中文单语、旧名）：
+**已发布 v1.0.1**（对应 [Release v1.0.1](https://github.com/collinszheng/SteamGamePicker/releases/tag/v1.0.1)）：
 
 | 产出物 | 路径 | 大小 | SHA256 |
 | :--- | :--- | ---: | :--- |
-| 可执行文件 | `SteamGamePicker\dist\SteamGamePicker.exe` | 19,995,005 | `22A340CA10D9142C5C48DDD9ABE3BF39841B68931575A00EF73D939B6C0B7207` |
-| 安装包 | `SteamGamePicker\dist\SteamGamePicker_Setup.exe` | 21,690,604 | `6A327017696FD52434EB2BA783C1A297E6C7CDEDE43FC38C1AD66A1FD4D26214` |
+| 可执行文件 | `SteamGamePicker\dist\SteamGamePicker.exe` | 20,051,708 | `4E8A2C41E337F52FB6C30C88335556201A3703313FEBFB700823C3317043E6B5` |
+| 安装包 | `SteamGamePicker\dist\SteamGamePicker_Setup.exe` | 21,841,800 | `D18DBF2333485C989D2CB098A63F54635C43803560E3B262BBB73338CEE04561` |
 
-> 此前 `1B8CF558…`（v1.0.0）、`29CFC2DD…`（v1.3）、`DD6664DD…`（v1.4）均已被取代，请勿再分发。
-> **v1.6 改名与 v1.7 图标尚未发版**（用户选择暂不发布），所以 Release 里的安装包显示名
-> 仍是「Steam 游戏抽签器」、只有中文界面、还是旧图标。
+> 校验方式：`Get-FileHash <文件> -Algorithm SHA256`，或 `certutil -hashfile <文件> SHA256`。
+> 安装包内含的 exe 与上表第一行是同一个文件（同一份 PyInstaller 产物）。
+> exe 文件属性：产品名 `Steam Game Picker`、版本 `1.0.1.0`、版权 `Copyright (c) 2026 collinszheng. MIT License.`。
 
-**本次本地重新打包**（含 v1.6 改名 / 中英双语 / v1.7 骰子图标，尚未发布 —— 仅用于验证打包链路）：
+**历史产物（已被 v1.0.1 取代，请勿再分发）**：
 
-| 产出物 | 大小 | SHA256 |
-| :--- | ---: | :--- |
-| `SteamGamePicker.exe` | 20,051,827 | `DAA3124123414EC7D3F852B7C434BAB5A7A8FFB2C524F658393CEB00689BF0CA` |
-| `SteamGamePicker_Setup.exe` | 21,842,253 | `CFF7DF52A87004A1C9DBA1AC04EC35A99CC7CABF16E4602B82D8D82D056AA7DF` |
+| 版本 | 说明 | 安装包 SHA256 |
+| :--- | :--- | :--- |
+| v1.0.0 | 界面为 v1.5 Steam 风格、中文单语、旧名「Steam 游戏抽签器」、旧图标、exe 无版本资源 | `6A327017696FD52434EB2BA783C1A297E6C7CDEDE43FC38C1AD66A1FD4D26214` |
+| v1.0.0 之前 | `22A340CA…`（v1.5 可执行文件）、`1B8CF558…`、`29CFC2DD…`（v1.3）、`DD6664DD…`（v1.4） | — |
 
-> 这次打包同时验证了 AC-55 的图标链路：**PyInstaller 与 Inno Setup 都接受含 7 个尺寸
-> （含 256 像素帧）的新 ICO**，把两个产物里的图标抽出来看，都是新的骰子图标
-> （`SetupIconFile` 也生效）。产物自检见下方 JSON。
 > 界面截图存于 `docs/evidence/ui-steam-theme-loaded.png`（已加载未抽签）、
 > `docs/evidence/ui-steam-theme-result.png`（抽签后含详情卡片）与
 > `docs/evidence/ui-english.png`（英文界面）；三张图均为 **1000×750 物理像素**
 > （本机 125% 缩放，已按 DPI 换算，见第 3 节缺陷 17）。
-> 图标本身见 `docs/evidence/icon-preview.png` 与 `docs/evidence/icon-256.png`。
+> 图标见 `docs/evidence/icon-preview.png` 与 `docs/evidence/icon-256.png`。
 
 打包产物自检（`SteamGamePicker.exe --selftest --live --report <文件>`）：
 
-v1.5 产物（联网校验，`docs/evidence/selftest-live-v15.json`）：
+**v1.0.1 已安装版本**（`docs/evidence/selftest-live-v101-installed.json`）——
+组件全部可用；`live_api` 报 `network`，原因是发布当天本机到 Steam 全线 502/503/504
+（同一时刻 GitHub 可达），非程序问题，详见 9.15：
+
+```json
+{ "version": "1.0.1", "frozen": true, "config_corrupted": false, "has_api_key": true,
+  "snapshot_games": 61, "cache_bytes": 242803, "tk_ok": true, "pillow_ok": true,
+  "requests_ok": true, "truststore_ok": true, "live_api": "network", "startup_ms": 29697.4 }
+```
+
+v1.5 产物（**联网校验通过**，`docs/evidence/selftest-live-v15.json`）：
 
 ```json
 { "version": "1.0.0", "frozen": true, "tk_ok": true, "pillow_ok": true,
   "requests_ok": true, "truststore_ok": true, "live_api": "ok", "startup_ms": 786.9 }
 ```
 
-v1.7 产物（本次打包，`docs/evidence/selftest-packaged-v17.json`；此环境未设置 `STEAM_API_KEY`，
-故联网一项按设计跳过 —— 联网链路已由 v1.5 那次与 `tools/live_check.py` 覆盖）：
+v1.7 打包产物（未联网环境，`docs/evidence/selftest-packaged-v17.json`）：
 
 ```json
 { "version": "1.0.0", "frozen": true, "tk_ok": true, "pillow_ok": true, "requests_ok": true,
@@ -242,7 +262,8 @@ v1.7 产物（本次打包，`docs/evidence/selftest-packaged-v17.json`；此环
   "startup_ms": 59.6 }
 ```
 
-已安装版本同样通过：`install_exit=0` → `--selftest --live` → `live_api: ok` → `uninstall_exit=0`（配置目录保留）。
+安装 / 卸载实测（v1.0.1，本机）：`install_exit=0` → 覆盖升级 v1.0.0 正常 →
+`--selftest` 通过 → `uninstall_exit=0` → 配置目录保留、注册表与快捷方式清空（详见 9.15）。
 
 冷启动外部计时：首次 2.98 s（杀软扫描新文件），此后稳定 2.01 / 2.01 / 2.03 s → **未超过 3 s 阈值，按 PRD 7.3 维持 onefile**。
 
@@ -251,7 +272,7 @@ v1.7 产物（本次打包，`docs/evidence/selftest-packaged-v17.json`；此环
 ## 5. 复现命令
 
 ```powershell
-# 全量测试（461 项）
+# 全量测试（477 项）
 cd SteamGamePicker
 python -m pytest
 
@@ -278,6 +299,7 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 
 | 项 | 需要的资源 | 步骤 |
 | :--- | :--- | :--- |
+| v1.0.1 联网复测 | 本机网络到 Steam 恢复可达 | `set STEAM_API_KEY=<你的Key>`、`set SGP_PUBLIC_ID=<公开账号SteamID64>`，然后 `python tools\live_check.py`；退出码 0 即通过。发布当天 Steam 全线 502/503/504，未能重跑 |
 | AC-06 / AC-07 / AC-08 剩余场景 | 一个**资料非公开**的账号、一个**无游戏**的账号、一个**无效 Key** | `set SGP_PRIVATE_ID=<非公开账号>`、`set SGP_EMPTY_ID=<空库账号>`、`set SGP_INVALID_KEY=<无效Key>`，然后 `python tools\live_check.py`；退出码 0 即通过 |
 | AC-36 控件重叠目视 | 你本人 | 把窗口拖到 640×480，确认无重叠与关键信息截断 |
 | AC-43 干净 Win10 | 一台未装过本程序的 Win10 64 位机器 | 运行安装包 → 启动 → 抽签 → 卸载 |
@@ -300,15 +322,17 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 | [35432941223](https://github.com/collinszheng/SteamGamePicker/actions/runs/35432941223) | `ccde79a` | ✅ 通过 | 验收记录补记（纯文档） |
 | [35433584762](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433584762) | `9cb7721` | ✅ 通过 | 图标重做（D13 / AC-55）通过，461 项。图标测试按像素采样判定配色与小尺寸简化，因此在**另一台机器**上重跑同样成立 |
 | [35433711249](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433711249) | `75860d7` | ✅ 通过 | 打包链路实测与产物校验值补记（纯文档） |
+| [35433762566](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433762566) | `f1bc515` | ✅ 通过 | CI 运行记录补记（纯文档） |
+| _v1.0.1 发布提交_ | 见下方“最终校验” | — | 发布提交推送后自动触发 |
 
-这次失败带来的实际收获（已记入 CHANGELOG「未发布」）：
+这次失败带来的实际收获（已记入 CHANGELOG）：
 
 1. **产品行为修正**：`display_time` 原来直接格式化"写入时的偏移"，把配置目录拷到别的时区
    （PRD 6.5 明确支持的迁移场景）后"上次更新"会与本地时钟不一致；现统一按当前本地时区换算。
 2. **测试时区无关化**：期望值改为由同一瞬间在本地时区推导，并新增两条与时区无关的不变量测试
    （ISO 往返保持瞬间不变；同一瞬间的不同偏移写法必须显示为同一个本地时间）。
 3. 验证了测试套件可以在**另一台干净机器**上完整跑通（windows-latest），
-   并且 405 → 407 → 438 → 461 项用例在两台机器、两个时区、两种界面语言下结果一致。
+   并且 405 → 407 → 438 → 461 → 477 项用例在两台机器、两个时区、两种界面语言下结果一致。
 
 > 注意：这次 CI 通过的是**测试套件**，不等同于 AC-43（在干净 Win10/Win11 上安装并走完主流程），
 > 该项仍列在第 6 节待补测。
