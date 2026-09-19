@@ -2,8 +2,8 @@
 
 | 项目 | 内容 |
 | :--- | :--- |
-| 依据文档 | `D:\Dev\PRD.md` v1.2、`D:\Dev\DEV_PLAN.md` v1.0 |
-| 代码版本 | v1.0.0（`D:\Dev\SteamGamePicker`） |
+| 依据文档 | [`PRD.md`](PRD.md) v1.5、[`DEV_PLAN.md`](DEV_PLAN.md) v1.0 |
+| 代码版本 | v1.0.0（本仓库） |
 | 验收日期 | 2026-09-19 |
 | 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3（Inno 未随附中文语言包） |
 | 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格 |
@@ -203,8 +203,8 @@
 ## 5. 复现命令
 
 ```powershell
-# 全量测试（320 项）
-cd D:\Dev\SteamGamePicker
+# 全量测试（405 项）
+cd SteamGamePicker
 python -m pytest
 
 # 真实接口校验（详情接口无需 Key；账号矩阵需先设置环境变量）
@@ -218,7 +218,7 @@ python tools\live_check.py
 
 # 重新打包
 python -m PyInstaller packaging\SteamGamePicker.spec --noconfirm
-"C:\Users\usr\Programs\InnoSetup6\ISCC.exe" packaging\installer.iss
+ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 
 # 打包产物自检
 .\dist\SteamGamePicker.exe --selftest --report .\dist\selftest.json

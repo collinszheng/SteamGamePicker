@@ -1,7 +1,7 @@
 ; Steam 游戏抽签器 安装包脚本（T7.2，对应 PRD 7.1 ~ 7.3）
 ;
 ; 编译（在项目根目录执行）：
-;   "C:\Users\usr\Programs\InnoSetup6\ISCC.exe" packaging\installer.iss
+;   ISCC.exe packaging\installer.iss      （ISCC 位于 Inno Setup 安装目录）
 ; 产物：dist\SteamGamePicker_Setup.exe
 ;
 ; 特性：
