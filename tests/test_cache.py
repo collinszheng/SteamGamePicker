@@ -58,7 +58,8 @@ def test_snapshot_roundtrip(cache: GameCache) -> None:
     assert loaded == saved
     assert len(loaded) == 2  # type: ignore[arg-type]
     assert saved.updated_at == to_iso(NOW)
-    assert saved.updated_display == "09-19 15:04"
+    # 显示按当前本地时区换算，因此断言不能写死某个时区（CI 在 UTC 上跑）
+    assert saved.updated_display == NOW.astimezone().strftime("%m-%d %H:%M")
 
 
 def test_snapshot_drops_dirty_entries(cache: GameCache, store: ConfigStore) -> None:
@@ -220,7 +221,7 @@ def test_default_capacity_limit_is_200mb() -> None:
 
 
 def test_time_helpers() -> None:
-    assert display_time(to_iso(NOW)) == "09-19 15:04"
+    assert display_time(to_iso(NOW)) == NOW.astimezone().strftime("%m-%d %H:%M")
     assert display_time("") == ""
     assert display_time(None) == ""
     assert display_time("不是时间") == "不是时间"
@@ -228,3 +229,20 @@ def test_time_helpers() -> None:
     assert parse_iso(123) is None
     naive = parse_iso("2026-09-19T15:04:05")
     assert naive is not None and naive.tzinfo is not None
+
+
+def test_iso_roundtrip_preserves_the_instant() -> None:
+    """存盘用带偏移的 ISO：往返解析必须还原到同一瞬间（与机器时区无关）。"""
+    parsed = parse_iso(to_iso(NOW))
+    assert parsed is not None
+    assert parsed == NOW  # aware datetime 比较的是瞬间，不是墙上时间
+    assert parsed.utcoffset() == dt.datetime.now().astimezone().utcoffset()
+
+
+def test_display_follows_current_local_timezone() -> None:
+    """同一瞬间的两种写法必须显示成同一个本地时间——这条不依赖机器时区。"""
+    with_offset = "2026-09-19T15:04:05+08:00"
+    in_utc = "2026-09-19T07:04:05+00:00"
+
+    assert display_time(with_offset) == display_time(in_utc)
+    assert display_time(with_offset) == parse_iso(with_offset).astimezone().strftime("%m-%d %H:%M")  # type: ignore[union-attr]

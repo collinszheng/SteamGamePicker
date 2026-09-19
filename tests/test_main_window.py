@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from app.cache import GameCache
+from app.cache import GameCache, parse_iso
 from app.cancellation import CancelToken
 from app.config import PRESET_ALL, PRESET_CUSTOM, PRESET_LOW, PRESET_NEVER, SORT_NAME, SORT_PLAYTIME, Config, ConfigStore
 from app.errors import ACTION_EXPAND, AppError, Err, message, status
@@ -98,11 +98,14 @@ def test_s1_with_key_is_idle(window: MainWindow) -> None:
 
 
 def test_loaded_games_switch_to_ready(window: MainWindow) -> None:
-    window.set_games(make_games(), updated_at="2026-09-19T15:04:05+08:00")
+    updated_at = "2026-09-19T15:04:05+08:00"
+    expected_display = parse_iso(updated_at).astimezone().strftime("%m-%d %H:%M")  # type: ignore[union-attr]
+
+    window.set_games(make_games(), updated_at=updated_at)
 
     assert window.state is AppState.READY
     assert str(window.draw_button.cget("state")) == "normal"
-    assert window.status_text() == "已加载 3 款 · 3 款参与抽签 · 上次更新 09-19 15:04"
+    assert window.status_text() == f"已加载 3 款 · 3 款参与抽签 · 上次更新 {expected_display}"
     assert len(window.tree.get_children()) == 3
     assert "3/3" in str(window.pool_toggle_button.cget("text"))
 
@@ -397,9 +400,13 @@ def test_same_account_keeps_exclusions_and_drops_unknown(window: MainWindow) -> 
 
 # ------------------------------------------------------------------ 状态行与关闭
 def test_status_line_keeps_loaded_message_after_toggle(window: MainWindow) -> None:
-    window.set_games(make_games(), updated_at="2026-09-19T15:04:05+08:00")
+    updated_at = "2026-09-19T15:04:05+08:00"
+    expected_display = parse_iso(updated_at).astimezone().strftime("%m-%d %H:%M")  # type: ignore[union-attr]
+
+    window.set_games(make_games(), updated_at=updated_at)
     window.toggle_game(1)
-    assert window.status_text() == "已加载 3 款 · 3 款参与抽签 · 上次更新 09-19 15:04"
+
+    assert window.status_text() == f"已加载 3 款 · 3 款参与抽签 · 上次更新 {expected_display}"
 
 
 def test_status_error_colors_and_actions(window: MainWindow) -> None:

@@ -13,6 +13,9 @@ jobs:
     # 界面测试需要真实 Tk 环境，所以用 Windows 运行器而不是 Linux
     runs-on: windows-latest
     timeout-minutes: 15
+    env:
+      # 测试与断言信息含中文，统一 UTF-8 避免运行器控制台编码差异
+      PYTHONUTF8: "1"
 
     steps:
       - name: 检出代码

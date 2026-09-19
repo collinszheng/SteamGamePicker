@@ -45,11 +45,16 @@ def parse_iso(text: object) -> dt.datetime | None:
 
 
 def display_time(iso_text: str | None) -> str:
-    """把 ISO 时间显示为 ``09-19 15:04``；无法解析时返回原文本。"""
+    """把 ISO 时间按**当前本地时区**显示为 ``09-19 15:04``；无法解析时返回原文本。
+
+    存盘时保留写入当时的偏移（PRD 6.3），显示时统一换算到本地时区——
+    这样把配置目录拷到别的时区（PRD 6.5 支持的迁移场景）后，
+    "上次更新"仍然与你当前的钟一致。
+    """
     moment = parse_iso(iso_text)
     if moment is None:
         return iso_text or ""
-    return moment.strftime("%m-%d %H:%M")
+    return moment.astimezone().strftime("%m-%d %H:%M")
 
 
 @dataclass(frozen=True, slots=True)
