@@ -1,9 +1,21 @@
 # Steam 游戏抽签器（Steam Game Picker）
 
+[![tests](https://github.com/collinszheng/SteamGamePicker/actions/workflows/tests.yml/badge.svg)](https://github.com/collinszheng/SteamGamePicker/actions/workflows/tests.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 > 输入 Steam ID 或资料 URL，读取你的游戏库，点一下按钮，随机抽出今晚要玩的那款。
 
 面向 Windows 10/11 的桌面小工具，解决"库里有几百款游戏，却不知道玩什么"的选择困难。
 纯 Tkinter 界面，不登录你的 Steam 账号，只通过 Steam 公开 Web API 读取公开数据。
+
+## 下载安装
+
+**➡️ [下载最新安装包](https://github.com/collinszheng/SteamGamePicker/releases/latest)**（`SteamGamePicker_Setup.exe`，约 21 MB）
+
+双击安装即可，**不需要管理员权限**；可选创建桌面快捷方式，卸载时会询问是否保留配置与缓存。
+首次启动会引导填写 Steam Web API Key（[申请地址](https://steamcommunity.com/dev/apikey)，免费）。
+
+想从源码运行见下方[快速开始](#快速开始源码运行)。
 
 ## 功能特性
 
@@ -70,7 +82,8 @@ ISCC.exe packaging\installer.iss                                   # 生成 dist
 .\dist\SteamGamePicker.exe --selftest --live --report .\dist\selftest.json
 ```
 
-> `dist/` 与 `build/` 已在 `.gitignore` 中排除，安装包不入库。
+> `dist/` 与 `build/` 已在 `.gitignore` 中排除，打包产物不入库；
+> 面向用户的安装包统一放在 [Releases](https://github.com/collinszheng/SteamGamePicker/releases) 页。
 
 ## 项目结构
 
