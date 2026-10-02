@@ -3,7 +3,7 @@
 | 项目 | 内容 |
 | :--- | :--- |
 | 依据文档 | [`PRD.md`](PRD.md) v1.11、[`DEV_PLAN.md`](DEV_PLAN.md) v1.0 |
-| 代码版本 | v1.1.1（本仓库；v1.0.1 已发布 [Release v1.0.1](https://github.com/collinszheng/SteamGamePicker/releases/tag/v1.0.1)，v1.1.1 本次发布） |
+| 代码版本 | v1.1.1（本仓库，已发布 [Release v1.1.1](https://github.com/collinszheng/SteamGamePicker/releases/tag/v1.1.1)） |
 | 验收日期 | 2026-10-02（v1.1.0 / 1.1.1 增量）；2026-09-19（v1.0.1 基线） |
 | 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3 |
 | 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格；v1.6（D11/D12）应用更名为 Steam Game Picker + 中英双语界面与英文 README；v1.7（D13）图标改为 Steam 风格骰子；v1.0.1（exe 版本资源 + 覆盖升级清理旧名快捷方式）；v1.9（D14）窗口尺寸与结果区布局 + 安装时选语言 + 抽签记录 + 文档统一；v1.10（D15）尺寸预设与「恢复所选」+ 对话框居中 + 记录改弹窗 + 默认语言跟随主机；v1.11（D16）新增 680×880 档并设为初始尺寸 + 尺寸改下拉条 + **安装向导提供简体中文** |
@@ -254,12 +254,19 @@
 
 ## 4. 产出物与校验值
 
-**v1.1.1（本次发布）**：
+**已发布 v1.1.1**（对应 [Release v1.1.1](https://github.com/collinszheng/SteamGamePicker/releases/tag/v1.1.1)，
+tag 指向提交 `6332d29`）：
 
 | 产出物 | 路径 | 大小 | SHA256 |
 | :--- | :--- | ---: | :--- |
 | 可执行文件 | `SteamGamePicker\dist\SteamGamePicker.exe` | 20,086,390 | `23BB13C966FA1F58C1BC1325146C7674E5C7BA71A0C45657130E8A2531042E1E` |
 | 安装包 | `SteamGamePicker\dist\SteamGamePicker_Setup.exe` | 21,878,737 | `ADC608023B4E8686B4089FE2FFC9C5944F4A64476E19458572D8868ECE0B73CC` |
+
+> **发布后回验（2026-10-02）**：从 `releases/latest/download/` 实际下载两个资产，
+> 大小分别 21,878,737 / 20,086,390 字节，SHA256 与上表**完全一致**，
+> 且同时等于本机 `dist` 里的构建产物（说明上传未损坏）；`releases/latest` 已指向 v1.1.1。
+> 两个资产都已作为 Release asset 上传（`SteamGamePicker_Setup.exe` 供用户下载，
+> `SteamGamePicker.exe` 便于核对，无需解包安装程序）。
 
 > 构建方式：`python -m PyInstaller packaging\SteamGamePicker.spec --noconfirm`（PyInstaller 6.22.3）
 > → `ISCC.exe packaging\installer.iss`（Inno Setup 6.7.3），两步均 exit 0，
