@@ -7,7 +7,7 @@
 | 验收日期 | 2026-10-02（v1.1.0 / 1.1.1 增量）；2026-09-19（v1.0.1 基线） |
 | 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3 |
 | 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格；v1.6（D11/D12）应用更名为 Steam Game Picker + 中英双语界面与英文 README；v1.7（D13）图标改为 Steam 风格骰子；v1.0.1（exe 版本资源 + 覆盖升级清理旧名快捷方式）；v1.9（D14）窗口尺寸与结果区布局 + 安装时选语言 + 抽签记录 + 文档统一；v1.10（D15）尺寸预设与「恢复所选」+ 对话框居中 + 记录改弹窗 + 默认语言跟随主机；v1.11（D16）新增 680×880 档并设为初始尺寸 + 尺寸改下拉条 + **安装向导提供简体中文** |
-| 自动化测试 | **569 项通过**（`python -m pytest`；0 跳过）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
+| 自动化测试 | **575 项通过**（`python -m pytest`；0 跳过）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
 | 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（v1.5 时期用用户提供的 SteamID64 与密钥实测，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/<SteamID64>` → **61 款游戏，加载 0.55 秒**。**v1.0.1 与 v1.1.x 的联网复测均未进行**：本机网络到 Steam 全线返回 502/503/504（同一时刻 GitHub 可达，程序侧 `live_api` 如实报 `network`），详见 9.15；账号矩阵中"非公开 / 空库 / 无效 Key"三项仍待提供对应账号 |
 
 ## 0. 结论摘要
@@ -258,8 +258,8 @@
 
 | 产出物 | 路径 | 大小 | SHA256 |
 | :--- | :--- | ---: | :--- |
-| 可执行文件 | `SteamGamePicker\dist\SteamGamePicker.exe` | 20,086,353 | `24CEED5046821A88CFB4BBBE3617B593FEB0636CCA6ACA599133C4724D804E1A` |
-| 安装包 | `SteamGamePicker\dist\SteamGamePicker_Setup.exe` | 21,878,373 | `7033710E3B1041C256793C6C373CDF829B7ED09F25C53738B2725123B0315021` |
+| 可执行文件 | `SteamGamePicker\dist\SteamGamePicker.exe` | 20,086,390 | `23BB13C966FA1F58C1BC1325146C7674E5C7BA71A0C45657130E8A2531042E1E` |
+| 安装包 | `SteamGamePicker\dist\SteamGamePicker_Setup.exe` | 21,878,737 | `ADC608023B4E8686B4089FE2FFC9C5944F4A64476E19458572D8868ECE0B73CC` |
 
 > 构建方式：`python -m PyInstaller packaging\SteamGamePicker.spec --noconfirm`（PyInstaller 6.22.3）
 > → `ISCC.exe packaging\installer.iss`（Inno Setup 6.7.3），两步均 exit 0，
@@ -273,7 +273,7 @@
 > 取自 Inno Setup 官方仓库 `jrsoftware/issrc` 的 `Files/Languages/`，UTF-8 无 BOM，417 行）
 > 已随仓库提供，编译日志确认 `Reading file: …\packaging\ChineseSimplified.isl`。
 > **客观验证**：把该文件临时移走后重新编译，产物 **21,875,502** 字节；
-> 带该文件时 **21,878,373** 字节，相差约 **2,871** 字节即中文消息表。
+> 带该文件时 **21,878,737** 字节，相差约 **3,235** 字节即中文消息表。
 > 中文列为 `[Languages]` **第一项**，因此是向导默认语言。
 >
 > **SmartScreen 提示说明**：v1.1.1 首次运行时可能弹出"Windows 已保护你的电脑"。
@@ -379,7 +379,7 @@ v1.7 打包产物（未联网环境，`docs/evidence/selftest-packaged-v17.json`
 ## 5. 复现命令
 
 ```powershell
-# 全量测试（569 项）
+# 全量测试（575 项）
 cd SteamGamePicker
 python -m pytest
 
@@ -435,7 +435,9 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 | [35433711249](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433711249) | `75860d7` | ✅ 通过 | 打包链路实测与产物校验值补记（纯文档） |
 | [35433762566](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433762566) | `f1bc515` | ✅ 通过 | CI 运行记录补记（纯文档） |
 | [35434319033](https://github.com/collinszheng/SteamGamePicker/actions/runs/35434319033) | `9a7b77b` | ✅ 通过 | **v1.0.1 发布提交**：477 项全绿，与本地结果一致 |
-| — | — | ⏳ 待提交 | **v1.1.0 尚未推送**：本轮改动（D14 / AC-57 ~ AC-62）已在本地 **549 项全绿**，但还没有远端 CI 运行记录。按项目规矩，代码改动推送后必须确认 CI 为绿 |
+| [36962892520](https://github.com/collinszheng/SteamGamePicker/actions/runs/36962892520) | `0b2cc38` | ❌ 失败 | **v1.1.1 发布提交的首次 CI**：8 条用例失败。**这次失败很有价值**：CI 运行器屏幕仅 **1024×768**，比三档窗口预设都矮，暴露了"被压缩的预设被显示成「自定义」"这个真实缺陷（缺陷 #31），以及两条写死屏幕尺寸/系统语言的测试缺陷（#32） |
+| [36963319519](https://github.com/collinszheng/SteamGamePicker/actions/runs/36963319519) | `5546635` | ❌ 失败 | 诊断提交（工作流改为失败时输出摘要并上传完整日志），用于在拿不到运行日志的情况下定位上面那次失败 |
+| [36963907520](https://github.com/collinszheng/SteamGamePicker/actions/runs/36963907520) | `847ba05` | ✅ 通过 | **修复提交**：小屏尺寸判定 + 测试屏幕无关化之后全绿，与本地 575 项结果一致 |
 
 这次失败带来的实际收获（已记入 CHANGELOG）：
 
@@ -444,7 +446,7 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 2. **测试时区无关化**：期望值改为由同一瞬间在本地时区推导，并新增两条与时区无关的不变量测试
    （ISO 往返保持瞬间不变；同一瞬间的不同偏移写法必须显示为同一个本地时间）。
 3. 验证了测试套件可以在**另一台干净机器**上完整跑通（windows-latest），
-   并且 405 → 407 → 438 → 461 → 477 → 555 → **569** 项用例在两台机器、两个时区、两种界面语言下结果一致。
+   并且 405 → 407 → 438 → 461 → 477 → 555 → **575** 项用例在两台机器、两个时区、两种界面语言下结果一致。
 
 > 注意：这次 CI 通过的是**测试套件**，不等同于 AC-43（在干净 Win10/Win11 上安装并走完主流程），
 > 该项仍列在第 6 节待补测。

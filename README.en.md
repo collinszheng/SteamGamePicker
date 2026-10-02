@@ -68,7 +68,7 @@ Configuration lives in `%APPDATA%\SteamGamePicker\config.json`.
 ## Running the tests
 
 ```powershell
-python -m pytest        # 569 tests
+python -m pytest        # 575 tests
 ```
 
 The suite covers pure logic (ID parsing, preset computation, cache TTL), the network layer contract
@@ -119,7 +119,7 @@ SteamGamePicker/
 │  ├─ i18n.py               Chinese and English message tables + system-language detection
 │  ├─ state.py              State machine and widget enable/disable mapping
 │  └─ ui/                   Main window, animation, settings/history dialogs, theme, title bar
-├─ tests/                   569 pytest cases (including Steam response fixtures)
+├─ tests/                   575 pytest cases (including Steam response fixtures)
 ├─ packaging/               PyInstaller spec and Inno Setup script
 ├─ tools/                   Live-check and icon generation scripts
 └─ docs/                    The single folder for development docs: PRD, plan, acceptance record
