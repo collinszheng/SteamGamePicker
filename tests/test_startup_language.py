@@ -12,6 +12,7 @@ import pytest
 from app import language_marker
 from app.config import LANGUAGE_EN, LANGUAGE_ZH, Config, ConfigStore, LoadResult
 from main import resolve_startup_language
+import main as main_module
 
 
 @pytest.fixture()
@@ -51,9 +52,28 @@ def test_marker_applies_even_when_a_config_already_exists(
 def test_no_marker_keeps_the_configured_language(
     store: ConfigStore, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """没有安装标记、也没有配置文件时，跟随主机语言。
+
+    这里显式打桩 ``system_language``：CI 运行器是英文系统、本机是中文系统，
+    不打桩就会把"测试机器的语言"当成期望值（这条曾经在 CI 上失败）。
+    """
     monkeypatch.setattr(language_marker, "take_first_run_language", lambda: None)
+    monkeypatch.setattr(main_module, "system_language", lambda: LANGUAGE_ZH)
+
     result = LoadResult(Config())
     assert resolve_startup_language(store, result, None) == LANGUAGE_ZH
+
+
+def test_system_language_is_used_for_english_hosts(
+    store: ConfigStore, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """英文主机（例如 CI）首次运行应得到英文，并立即落盘。"""
+    monkeypatch.setattr(language_marker, "take_first_run_language", lambda: None)
+    monkeypatch.setattr(main_module, "system_language", lambda: LANGUAGE_EN)
+
+    result = LoadResult(Config())
+    assert resolve_startup_language(store, result, None) == LANGUAGE_EN
+    assert store.load().config.language == LANGUAGE_EN
 
 
 def test_corrupted_config_is_not_treated_as_first_run(

@@ -319,16 +319,19 @@ class SettingsDialog:
         self.select_window_size(self._initial_window_size())
 
     def _initial_window_size(self) -> str:
-        """按当前窗口几何推断该选中哪个尺寸选项（含屏幕装不下的情况）。"""
+        """按当前窗口几何推断该选中哪个尺寸选项（含屏幕装不下、被压缩的情况）。"""
         parent = self.parent
         try:
             screen_width = int(parent.winfo_screenwidth())
             screen_height = int(parent.winfo_screenheight())
         except (AttributeError, tk.TclError):  # pragma: no cover - 无显示环境
             screen_width, screen_height = 0, 0
+        # 没有显式选择时用"当前屏幕下最合适的预设"，而不是写死的默认值：
+        # 小屏上写死会让下拉条显示「自定义」
+        fallback = theme.best_fit_size(screen_width, screen_height)
         return resolve_window_size(
-            self.config.ui.window_size,
-            self.config.ui.window_geometry,
+            self.config.ui.window_size or fallback,
+            self.config.ui.window_geometry or fallback,
             screen_width,
             screen_height,
         )

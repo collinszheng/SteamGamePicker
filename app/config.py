@@ -147,15 +147,32 @@ def parse_geometry(text: str) -> tuple[int, int] | None:
     return width, height
 
 
-def size_matches_geometry(size: str, geometry: str, screen_width: int, screen_height: int) -> bool:
-    """判断"当前窗口几何"是否就等于某个预设尺寸。
+def size_matches_geometry(
+    size: str, geometry: str, screen_width: int, screen_height: int
+) -> tuple[bool, bool]:
+    """判断"当前窗口几何"是否等于某个预设尺寸。
 
-    必须先把几何压到屏幕内再比：屏幕装不下预设时窗口会被收缩，
-    不这样做的话设置里会永远显示"自定义"，而恢复默认又回到预设，来回打架。
+    返回 ``(是否匹配, 是否属于"屏幕装不下、被压缩过"的情形)``。
+
+    两种情形都算匹配：
+    1. 几何正好等于预设（可信匹配）；
+    2. 几何等于**该预设被屏幕压缩后**的结果（小屏上必然发生，但可信度低——
+       别的尺寸被压缩后也可能长成这样）。
+
+    第 2 条用于显示：没有它，1024×768 的小屏上窗口被压成 680×768，下拉条就会显示
+    「自定义」，而用户明明选的是 680×880。第 2 个返回值用于**判定用户是否真的拖过窗口**：
+    只有"可信匹配"才敢断言尺寸没被改过。
     """
     preset = parse_geometry(size)
-    actual = parse_geometry(clamp_geometry(geometry, screen_width, screen_height))
-    return preset is not None and actual == preset
+    actual = parse_geometry(geometry)
+    if preset is None or actual is None:
+        return (False, False)
+    if actual == preset:
+        return (True, False)
+    clamped = parse_geometry(clamp_geometry(size, screen_width, screen_height))
+    if clamped is not None and actual == clamped:
+        return (True, True)
+    return (False, False)
 
 
 def resolve_window_size(
@@ -166,19 +183,53 @@ def resolve_window_size(
 ) -> str:
     """决定"窗口大小"这一选项该显示什么。
 
-    优先级：显式选定的预设（且与当前窗口一致）→ 当前窗口恰好等于某个预设 → 自定义。
-    最后一步是对旧配置的兜底：老版本没有 ``window_size`` 字段，
+    优先级：显式选定且与当前窗口一致的预设 → 当前窗口恰好等于某个预设（或其被压缩后的
+    结果）→ 自定义。最后一步是对旧配置的兜底：老版本没有 ``window_size`` 字段，
     但窗口尺寸可能正好是某个预设值。
     """
     text = _as_str(size, "")
-    if text in WINDOW_SIZE_CHOICES and size_matches_geometry(
-        text, _as_str(geometry, DEFAULT_GEOMETRY), screen_width, screen_height
-    ):
-        return text
+    geometry_text = _as_str(geometry, DEFAULT_GEOMETRY)
+    if text in WINDOW_SIZE_CHOICES:
+        matched, _compressed = size_matches_geometry(
+            text, geometry_text, screen_width, screen_height
+        )
+        if matched:
+            return text
     for choice in WINDOW_SIZE_CHOICES:
-        if size_matches_geometry(choice, _as_str(geometry, DEFAULT_GEOMETRY), screen_width, screen_height):
+        matched, _compressed = size_matches_geometry(
+            choice, geometry_text, screen_width, screen_height
+        )
+        if matched:
             return choice
     return WINDOW_SIZE_CUSTOM
+
+
+def geometry_proves_a_manual_resize(
+    size: object,
+    geometry: object,
+    screen_width: int,
+    screen_height: int,
+) -> bool:
+    """当前尺寸能否**断定**用户手动调过窗口。
+
+    仅在"几何既不等于预设、也不等于预设被屏幕压缩后的结果"时返回 True。
+    含糊的情况（只匹配压缩后的尺寸）返回 False——小屏上多个尺寸压缩后会长得一样，
+    此时宁可保留用户选定的预设，也不要误报成「自定义」。
+
+    顺序上必须先比对预设（含被压缩后的结果）：否则 680×768 在 768 高的屏上会先撞上
+    "高度正好等于屏幕"而被误判成手动调整，而它其实正是 680×880 被压下来的样子。
+    """
+    text = _as_str(size, "")
+    candidates = (text,) if text in WINDOW_SIZE_CHOICES else WINDOW_SIZE_CHOICES
+    for choice in candidates:
+        matched, _compressed = size_matches_geometry(
+            choice, _as_str(geometry, DEFAULT_GEOMETRY), screen_width, screen_height
+        )
+        if matched:
+            # 正好等于预设，或等于预设被屏幕压缩后的结果 → 不能断定用户改过尺寸
+            return False
+    # 与任何预设（含压缩后）都不匹配 → 用户改过尺寸
+    return True
 
 
 def migrate_geometry(text: str) -> str:

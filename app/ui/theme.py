@@ -133,6 +133,19 @@ PAD_TIGHT = 4
 WINDOW_SIZE_PRESETS: tuple[tuple[int, int], ...] = ((680, 880), (800, 1100), (1100, 800))
 #: 默认窗口尺寸（取预设第一项，避免两处各写一份）
 WINDOW_DEFAULT_WIDTH, WINDOW_DEFAULT_HEIGHT = WINDOW_SIZE_PRESETS[0]
+
+
+def best_fit_size(screen_width: int, screen_height: int) -> str:
+    """屏幕装不下默认预设时，挑一个能放下的预设（PRD D16）。
+
+    没有这个回退，1024×768 这类小屏上默认尺寸会被迫压缩，而下拉条随即显示
+    「自定义」——用户明明没拖过窗口，却看到"自定义"，很困惑。
+    选择顺序即预设顺序：取第一个能完整放下的；都放不下则仍用第一个（由 clamp 压缩）。
+    """
+    for width, height in WINDOW_SIZE_PRESETS:
+        if width <= screen_width and height <= screen_height:
+            return f"{width}x{height}"
+    return f"{WINDOW_SIZE_PRESETS[0][0]}x{WINDOW_SIZE_PRESETS[0][1]}"
 #: 最小尺寸：宽度取最窄的预设（再窄会挤坏封面与文字列），高度 620
 #: （结果卡片是固定高度，再矮就会挤压各区块）
 WINDOW_MIN_WIDTH = 680

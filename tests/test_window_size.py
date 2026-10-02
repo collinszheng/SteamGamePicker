@@ -20,6 +20,7 @@ from app.config import (
     Config,
     ConfigStore,
     clamp_geometry,
+    geometry_proves_a_manual_resize,
     migrate_geometry,
     parse_geometry,
     resolve_window_size,
@@ -37,6 +38,19 @@ def store(tmp_path: Path) -> ConfigStore:
     instance = ConfigStore(tmp_path / "SteamGamePicker")
     instance.ensure_dirs()
     return instance
+
+
+def screen_size(root: tk.Tk) -> tuple[int, int]:
+    """当前屏幕尺寸。CI 运行器是 1024×768，装不下我们的预设，测试必须据此调整。"""
+    return int(root.winfo_screenwidth()), int(root.winfo_screenheight())
+
+
+def clamped(text: str, root: tk.Tk) -> tuple[int, int]:
+    """把几何按屏幕收敛后的尺寸（模拟"窗口被压到屏幕内"）。"""
+    width, height = screen_size(root)
+    parsed = parse_geometry(clamp_geometry(text, width, height))
+    assert parsed is not None
+    return parsed
 
 
 # ---------------------------------------------------------------- 纯逻辑：解析
@@ -117,21 +131,55 @@ def test_config_no_longer_stores_the_pool_panel_flag(store: ConfigStore) -> None
 
 # ---------------------------------------------------------------- 窗口行为
 def test_window_uses_the_new_default(root: tk.Tk, store: ConfigStore) -> None:
-    """没有历史配置时，启动就应请求默认尺寸（预设第一项，680×880）。
+    """没有历史配置时，启动就应请求**当前屏幕下最合适的预设**（默认 680×880）。
 
     断言的是"向窗口请求的几何"：窗口未映射时 Tk 的 ``geometry()`` 读回来的是
     minsize，拿它判断默认值会得到假失败。
+    屏幕比预设矮时（例如 CI 的 1024×768）窗口会被压到屏幕内，这是预期行为。
     """
+    world_width, world_height = screen_size(root)
+    expected = theme.best_fit_size(world_width, world_height)
+
     window = MainWindow(root, store=store, config=Config(api_key=KEY))
-    assert parse_geometry(window._initial_geometry()) == (680, 880)
-    assert window._initial_geometry() == DEFAULT_GEOMETRY
-    assert DEFAULT_GEOMETRY == f"{theme.WINDOW_SIZE_PRESETS[0][0]}x{theme.WINDOW_SIZE_PRESETS[0][1]}"
+    assert window._initial_geometry() == clamp_geometry(expected, world_width, world_height)
+    # 屏幕够大时必须就是预设本身（本机 2560×1440 会走到这里）
+    if world_width >= 680 and world_height >= 880:
+        assert window._initial_geometry() == DEFAULT_GEOMETRY == "680x880"
 
 
 def test_all_size_presets_are_offered() -> None:
     """用户要求的三档尺寸都必须可选，且默认是 680×880（安装后的初始值）。"""
     assert WINDOW_SIZE_CHOICES == ("680x880", "800x1100", "1100x800")
     assert DEFAULT_GEOMETRY == "680x880"
+
+
+def test_best_fit_prefers_the_first_preset_that_fits() -> None:
+    """屏幕装不下默认预设时降级到能放下的那一档（PRD D16）。"""
+    assert theme.best_fit_size(2560, 1440) == "680x880"  # 都放得下 → 取第一档
+    assert theme.best_fit_size(1024, 768) == "680x880"  # 都放不下 → 仍取第一档（会被压缩）
+    assert theme.best_fit_size(1100, 820) == "1100x800"  # 只放得下 1100×800 → 降级到它
+
+
+def test_small_screen_does_not_look_like_custom() -> None:
+    """小屏上把预设压缩后，下拉条不能显示「自定义」（CI 暴露的真实缺陷）。"""
+    # 1024×768：680×880 放不下 → 压缩成 680×768，但仍应识别为"选了 680×880"
+    assert resolve_window_size("680x880", "680x768", 1024, 768) == "680x880"
+    assert resolve_window_size(None, "680x768", 1024, 768) == "680x880"
+    # 真正的自定义（用户拖出来的尺寸）仍要判成 custom
+    assert resolve_window_size(None, "900x700", 1024, 768) == WINDOW_SIZE_CUSTOM
+    assert resolve_window_size("680x880", "900x700", 1024, 768) == WINDOW_SIZE_CUSTOM
+
+
+def test_manual_resize_is_detected_without_ambiguous_false_positives() -> None:
+    """小屏上"窗口被压缩"与"用户拖过"必须分得清。"""
+    # 正好等于预设 → 不是手动调整
+    assert geometry_proves_a_manual_resize("680x880", "680x880", 1024, 768) is False
+    # 恰好等于预设被压缩的结果 → 含糊，保守判为"没拖过"
+    assert geometry_proves_a_manual_resize("680x880", "680x768", 1024, 768) is False
+    # 明显不同的尺寸 → 判为手动调整
+    assert geometry_proves_a_manual_resize("680x880", "900x700", 1024, 768) is True
+    # 拉满整屏 → 判为手动调整（预设都放不下，说明用户改了）
+    assert geometry_proves_a_manual_resize("680x880", "1024x768", 1024, 768) is True
 
 
 def test_first_run_centers_the_window(root: tk.Tk, store: ConfigStore) -> None:
@@ -171,7 +219,7 @@ def test_migrated_legacy_size_drops_the_stale_position(root: tk.Tk, store: Confi
 
 
 def test_user_chosen_size_keeps_its_position(root: tk.Tk, store: ConfigStore) -> None:
-    """用户自己拉大的尺寸不属于迁移范围，位置必须保留。"""
+    """用户自己拉大的尺寸不属于迁移范围，位置必须保留（尺寸本身会按屏幕收敛）。"""
     store.ensure_dirs()
     store.config_path.write_text(
         '{"schema_version": 1, "api_key": "' + KEY + '",'
@@ -181,8 +229,11 @@ def test_user_chosen_size_keeps_its_position(root: tk.Tk, store: ConfigStore) ->
     result = store.load()
     window = MainWindow(root, store=store, config=result.config)
 
-    assert window._initial_geometry() == "1400x900+120+80"
+    world_width, world_height = screen_size(root)
+    expected = clamp_geometry("1400x900+120+80", world_width, world_height)
+    assert window._initial_geometry() == expected
     assert window._needs_centering is False
+    assert "+120+80" in expected
 
 
 def test_offscreen_saved_position_is_discarded(root: tk.Tk, store: ConfigStore) -> None:
@@ -200,7 +251,7 @@ def test_apply_default_geometry_resets_and_persists(root: tk.Tk, store: ConfigSt
 
     geometry = window.apply_default_geometry("1100x800")
 
-    assert parse_geometry(geometry) == (1100, 800)
+    assert parse_geometry(geometry) == clamped("1100x800", root)
     assert window.config.ui.window_size == "1100x800"
     assert window.config.ui.window_geometry == geometry
     assert store.load().config.ui.window_geometry == geometry
@@ -210,8 +261,8 @@ def test_reset_uses_the_selected_preset(root: tk.Tk, store: ConfigStore) -> None
     """用户明确要求：恢复默认的值 = 尺寸选择框里的值。"""
     window = MainWindow(root, store=store, config=Config(api_key=KEY))
 
-    assert parse_geometry(window.apply_default_geometry("800x1100")) == (800, 1100)
-    assert parse_geometry(window.apply_default_geometry("1100x800")) == (1100, 800)
+    assert parse_geometry(window.apply_default_geometry("680x880")) == clamped("680x880", root)
+    assert parse_geometry(window.apply_default_geometry("1100x800")) == clamped("1100x800", root)
     assert window.config.ui.window_size == "1100x800"
 
 
@@ -236,21 +287,26 @@ def test_settings_dialog_exposes_the_size_dropdown(root: tk.Tk, store: ConfigSto
         assert dialog.selected_window_size() == "1100x800"
         dialog.reset_window_size()
         assert window.config.ui.window_size == "1100x800"
-        assert parse_geometry(window.config.ui.window_geometry) == (1100, 800)
+        assert parse_geometry(window.config.ui.window_geometry) == clamped("1100x800", root)
         assert "已按所选尺寸" in dialog.error_text()
     finally:
         dialog.close()
 
 
 def test_default_selection_is_the_first_preset(root: tk.Tk, store: ConfigStore) -> None:
-    """全新配置下，下拉条默认就选中 680×880。"""
+    """全新配置下，下拉条默认选中当前屏幕下最合适的预设（够大时就是 680×880）。"""
+    world_width, world_height = screen_size(root)
+    expected = theme.best_fit_size(world_width, world_height)
+
     window = MainWindow(root, store=store, config=Config(api_key=KEY))
     window.on_settings()
     dialog = window._settings_dialog
     assert dialog is not None
     try:
-        assert dialog.selected_window_size() == DEFAULT_GEOMETRY == "680x880"
-        assert dialog.window_size_var.get() == dialog._size_label("680x880")
+        assert dialog.selected_window_size() == expected
+        assert dialog.window_size_var.get() == dialog._size_label(expected)
+        if world_width >= 680 and world_height >= 880:
+            assert expected == DEFAULT_GEOMETRY == "680x880"
     finally:
         dialog.close()
 
@@ -285,7 +341,7 @@ def test_save_applies_the_selected_size(root: tk.Tk, store: ConfigStore) -> None
 
     saved = store.load().config
     assert saved.ui.window_size == "1100x800"
-    assert parse_geometry(saved.ui.window_geometry) == (1100, 800)
+    assert parse_geometry(saved.ui.window_geometry) == clamped("1100x800", root)
 
 
 def test_settings_buttons_have_equal_size(root: tk.Tk, store: ConfigStore) -> None:

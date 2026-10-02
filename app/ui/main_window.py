@@ -196,7 +196,7 @@ class MainWindow:
         同时决定"要不要居中"：只有没保存过**位置**（首次运行、或旧配置里只有尺寸）
         时才居中，用户自己摆过的位置必须尊重。
         """
-        saved = self.config.ui.window_geometry or config_module.DEFAULT_GEOMETRY
+        saved = self.config.ui.window_geometry or self._best_fit_size()
         # 只有"没保存过位置"才居中：首次运行、或旧配置里只存了尺寸
         self._needs_centering = not config_module.geometry_has_position(saved)
         try:
@@ -206,6 +206,15 @@ class MainWindow:
             return saved
         return config_module.clamp_geometry(saved, screen_width, screen_height)
 
+    def _best_fit_size(self) -> str:
+        """当前屏幕下最合适的预设尺寸（小屏自动降级，见 D16）。"""
+        try:
+            screen_width = int(self.root.winfo_screenwidth())
+            screen_height = int(self.root.winfo_screenheight())
+        except tk.TclError:  # pragma: no cover - 无显示环境
+            return config_module.DEFAULT_GEOMETRY
+        return theme.best_fit_size(screen_width, screen_height)
+
     def apply_default_geometry(self, size: str | None = None) -> str:
         """按**指定预设**调整主窗口尺寸（设置窗口里的按钮，PRD D14）。
 
@@ -213,7 +222,7 @@ class MainWindow:
         （``800x1100`` / ``1100x800``）；不传则用当前 ``ui.window_size``。
         返回实际应用的几何串（会按屏幕收敛）。
         """
-        target = size or self.config.ui.window_size or config_module.DEFAULT_GEOMETRY
+        target = size or self.config.ui.window_size or self._best_fit_size()
         geometry = self._resolved_preset_geometry(target)
         self.config.ui.window_size = target
         self.config.ui.window_geometry = geometry
@@ -1162,18 +1171,24 @@ class MainWindow:
         self._save_config()
 
     def current_window_size(self) -> str:
-        """当前窗口对应哪个尺寸选项（拖过就是 ``custom``）。"""
+        """当前窗口对应哪个尺寸选项（用户拖过就是 ``custom``）。
+
+        判定分两步，因为屏幕比预设小时窗口会被压缩：
+        1. 先用几何判断"尺寸是否被改动过"（含糊的情况保守处理，不误报自定义）；
+        2. 没被改动就保留用户选定的预设。
+        """
+        stored = self.config.ui.window_size or self._best_fit_size()
         try:
             screen_width = int(self.root.winfo_screenwidth())
             screen_height = int(self.root.winfo_screenheight())
         except tk.TclError:  # pragma: no cover
-            return self.config.ui.window_size
-        return config_module.resolve_window_size(
-            self.config.ui.window_size,
-            self._current_geometry(),
-            screen_width,
-            screen_height,
-        )
+            return stored
+        geometry = self._current_geometry()
+        if config_module.geometry_proves_a_manual_resize(
+            stored, geometry, screen_width, screen_height
+        ):
+            return config_module.WINDOW_SIZE_CUSTOM
+        return config_module.resolve_window_size(stored, geometry, screen_width, screen_height)
 
     def _current_geometry(self) -> str:
         try:
