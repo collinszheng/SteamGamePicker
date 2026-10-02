@@ -15,7 +15,8 @@ The interface is available in **Chinese and English** (Chinese by default).
 
 **➡️ [Download the latest installer](https://github.com/collinszheng/SteamGamePicker/releases/latest)** (`SteamGamePicker_Setup.exe`, ~21 MB)
 
-Double-click to install — **no administrator rights needed**. A desktop shortcut is optional, and the
+Double-click to install — **no administrator rights needed**. The installer wizard ships in
+**Simplified Chinese (default) and English**. A desktop shortcut is optional, and the
 uninstaller asks whether to keep your config and cache. On first launch you'll be guided through
 entering a Steam Web API Key ([get one here](https://steamcommunity.com/dev/apikey), free).
 
@@ -30,9 +31,11 @@ To run from source instead, see [Quick start](#quick-start-from-source).
 | Local cache | Library snapshot + details cache (7 days by default); **instant startup and picking works offline** |
 | Range filters | “All games” / “Never played” / “Barely played” (the last two **can be combined**, union semantics); individual games can also be unchecked in the list |
 | Picking animation | 1.8 s rolling deceleration, the winner locks in green and bold; the result is drawn uniformly from the current selection |
-| Result panel | Cover, summary, genres, release date, Metacritic score and price (list price only, never the discounted one) |
+| Result panel | Cover, summary, genres, release date, Metacritic score and price (list price only, never the discounted one); the panel has a **fixed height**, so the window no longer jumps on every pick |
+| Pick history | Keeps the last **10** picks (time + game name) in a separate window opened from the “Pick history” button; double-click an entry to open that game's details, clear it with one button |
 | Error messages | Clear Chinese/English messages that distinguish “profile is private”, “invalid key”, “library is empty”, “too many requests” and more |
-| UI language | **Chinese / English**, switchable in Settings (Chinese by default, applied instantly — no restart) |
+| UI language | **Chinese / English**, switchable in Settings (defaults to your **system language**, applied instantly — no restart); it can also be chosen **during installation** and the app starts in that language |
+| Window size | Defaults to **680 × 880** with 800 × 1100 / 1100 × 800 options in a Settings dropdown; size and position are remembered, and the window plus every dialog opens centred |
 | Certificate fallback | If certifi can't verify the chain, it retries once against the OS trust store — **certificate verification is never disabled** |
 
 ## Requirements
@@ -65,7 +68,7 @@ Configuration lives in `%APPDATA%\SteamGamePicker\config.json`.
 ## Running the tests
 
 ```powershell
-python -m pytest        # 477 tests
+python -m pytest        # 569 tests
 ```
 
 The suite covers pure logic (ID parsing, preset computation, cache TTL), the network layer contract
@@ -109,15 +112,17 @@ SteamGamePicker/
 │  ├─ trust.py              Certificate fallback to the OS trust store
 │  ├─ pool.py               Range filters, pickable pool, uniform random (pure functions)
 │  ├─ cache.py              Library snapshot / details / cover cache
-│  ├─ config.py             Config I/O (atomic writes, corruption recovery)
+│  ├─ history.py            Pick history (last 10 picks)
+│  ├─ language_marker.py    Language chosen at install time (registry marker, consumed on first run)
+│  ├─ config.py             Config I/O (atomic writes, corruption recovery, legacy window-size migration)
 │  ├─ worker.py             Background thread + queue + cancellation tokens
-│  ├─ i18n.py               Chinese and English message tables
+│  ├─ i18n.py               Chinese and English message tables + system-language detection
 │  ├─ state.py              State machine and widget enable/disable mapping
-│  └─ ui/                   Main window, animation, settings dialog, theme
-├─ tests/                   477 pytest cases (including Steam response fixtures)
+│  └─ ui/                   Main window, animation, settings/history dialogs, theme, title bar
+├─ tests/                   569 pytest cases (including Steam response fixtures)
 ├─ packaging/               PyInstaller spec and Inno Setup script
 ├─ tools/                   Live-check and icon generation scripts
-└─ docs/                    PRD, development plan, acceptance record
+└─ docs/                    The single folder for development docs: PRD, plan, acceptance record
 ```
 
 ## Documentation
@@ -126,7 +131,7 @@ SteamGamePicker/
 | :--- | :--- |
 | [Product requirements (PRD)](docs/PRD.md) | Goals, page structure, per-module data and actions, local data rules, scope, acceptance criteria |
 | [Development plan](docs/DEV_PLAN.md) | M0–M8 task breakdown, interface contracts, schedule and outcome |
-| [Acceptance record](docs/ACCEPTANCE.md) | AC-01 ~ AC-55 with evidence, documented deviations and the pending list |
+| [Acceptance record](docs/ACCEPTANCE.md) | AC-01 ~ AC-62 with evidence, documented deviations and the pending list |
 
 > The three documents above are currently written in Chinese.
 

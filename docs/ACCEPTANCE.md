@@ -1,21 +1,21 @@
-# Steam Game Picker · v1.0.1 验收记录
+# Steam Game Picker · v1.1.1 验收记录
 
 | 项目 | 内容 |
 | :--- | :--- |
-| 依据文档 | [`PRD.md`](PRD.md) v1.8、[`DEV_PLAN.md`](DEV_PLAN.md) v1.0 |
-| 代码版本 | v1.0.1（本仓库，已发布 [Release v1.0.1](https://github.com/collinszheng/SteamGamePicker/releases/tag/v1.0.1)） |
-| 验收日期 | 2026-09-19 |
-| 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3（Inno 未随附中文语言包） |
-| 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格；v1.6（D11/D12）应用更名为 Steam Game Picker + 中英双语界面与英文 README；v1.7（D13）图标改为 Steam 风格骰子；v1.0.1 发布（exe 版本资源 + 覆盖升级清理旧名快捷方式） |
-| 自动化测试 | **477 项全部通过**（`python -m pytest`）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
-| 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（v1.5 时期用用户提供的 SteamID64 与密钥实测，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/<SteamID64>` → **61 款游戏，加载 0.55 秒**。**v1.0.1 发布当天的复测未能进行**：本机网络到 Steam 全线返回 502/503/504（同一时刻 GitHub 可达，程序侧 `live_api` 如实报 `network`），详见 9.15；账号矩阵中"非公开 / 空库 / 无效 Key"三项仍待提供对应账号 |
+| 依据文档 | [`PRD.md`](PRD.md) v1.11、[`DEV_PLAN.md`](DEV_PLAN.md) v1.0 |
+| 代码版本 | v1.1.1（本仓库；v1.0.1 已发布 [Release v1.0.1](https://github.com/collinszheng/SteamGamePicker/releases/tag/v1.0.1)，v1.1.1 本次发布） |
+| 验收日期 | 2026-10-02（v1.1.0 / 1.1.1 增量）；2026-09-19（v1.0.1 基线） |
+| 验收环境 | Windows 11（10.0.26300）、Python 3.12.10、requests 2.34.2、Pillow 12.3.0、truststore（可选依赖）、PyInstaller 6.22.3、Inno Setup 6.7.3 |
+| 最新修复 | v1.3（D8）证书信任回退；v1.4（D9）快捷范围可并存 + 抽签结果不再被占位文案覆盖；v1.5（D10）界面改为 Steam 官方深色风格；v1.6（D11/D12）应用更名为 Steam Game Picker + 中英双语界面与英文 README；v1.7（D13）图标改为 Steam 风格骰子；v1.0.1（exe 版本资源 + 覆盖升级清理旧名快捷方式）；v1.9（D14）窗口尺寸与结果区布局 + 安装时选语言 + 抽签记录 + 文档统一；v1.10（D15）尺寸预设与「恢复所选」+ 对话框居中 + 记录改弹窗 + 默认语言跟随主机；v1.11（D16）新增 680×880 档并设为初始尺寸 + 尺寸改下拉条 + **安装向导提供简体中文** |
+| 自动化测试 | **569 项通过**（`python -m pytest`；0 跳过）；同一套测试已在 **GitHub Actions（windows-latest）** 上通过，见下方持续集成证据 |
+| 真实接口校验 | 商店详情 **6/6**、真实账号端到端 **4/4**（v1.5 时期用用户提供的 SteamID64 与密钥实测，均经环境变量传入、未写入代码）：`https://steamcommunity.com/profiles/<SteamID64>` → **61 款游戏，加载 0.55 秒**。**v1.0.1 与 v1.1.x 的联网复测均未进行**：本机网络到 Steam 全线返回 502/503/504（同一时刻 GitHub 可达，程序侧 `live_api` 如实报 `network`），详见 9.15；账号矩阵中"非公开 / 空库 / 无效 Key"三项仍待提供对应账号 |
 
 ## 0. 结论摘要
 
 | 状态 | 数量 | 说明 |
 | :--- | :--- | :--- |
-| ✅ 通过 | 50 | 有自动化测试或实测证据 |
-| ⚠️ 部分通过 | 3 | AC-36（控件重叠需人工目视）、AC-37（真实按键事件）、AC-43 之外的设备相关项见下行 |
+| ✅ 通过 | 62 | 有自动化测试或实测证据（新增 AC-57 ~ AC-69 共 13 项） |
+| ⚠️ 部分通过 | 4 | AC-36（控件重叠需人工目视）、AC-37（真实按键事件）、AC-60（标题栏观感需人工目视）、AC-43 之外的设备相关项见下行 |
 | ⏸ 待凭据 / 待设备 | 3 | AC-06 / AC-07 / AC-08 中需要"非公开 / 空库 / 无效 Key"的场景；AC-43 的干净 Win10 机器 |
 | ❌ 未通过 | 0 | — |
 
@@ -162,6 +162,34 @@
 > （61 款游戏、0.55 秒），契约层另有脱机样本测试全程覆盖。网络恢复后可执行
 > `python tools/live_check.py`（设置 `STEAM_API_KEY` 与 `SGP_PUBLIC_ID`）补跑，退出码 0 即通过。
 
+### 9.16 v1.9 界面可用性改版（D14）
+
+| 编号 | 结果 | 证据 |
+| :--- | :--- | :--- |
+| AC-57 默认窗口尺寸 | ✅ | `tests/test_window_size.py`：`theme.WINDOW_DEFAULT_*` 必须为 1100 × 800、`WINDOW_MIN_*` 为 640 × 620（`tests/test_ui_smoke.py::test_theme_values_match_prd` 同步锁定），启动时请求的几何串等于 `DEFAULT_GEOMETRY`；`tests/test_ui_theme.py::test_no_widget_overflows_the_window` 与 `…_in_english` 在**默认 1100×800 与最小 640×620** 两个尺寸下逐控件判定无越界（含新增的记录区）。设置里的「恢复默认窗口大小」→ `test_apply_default_geometry_resets_and_persists`（应用 + 写盘）与 `test_settings_dialog_exposes_the_reset_button`（按钮真的接通主窗口） |
+| AC-58 旧窗口尺寸迁移 | ✅ | `tests/test_window_size.py`：`migrate_geometry("800x600")`、`("800x600+120+80")` 均升为默认值（**按尺寸判断**，只比较字符串会漏掉带位置后缀的绝大多数老用户）；`1400x900` 保持不动；`860x700`（太窄）、`1200x640`（太矮）升级；`test_loading_an_old_config_upgrades_the_geometry` 用真实 `config.json` 内容验证读盘路径。屏幕外位置修正：`clamp_geometry` 压回屏幕内 + `test_offscreen_saved_position_is_discarded`（`+5000+5000` 不会被采用） |
+| AC-59 结果区固定与抽签记录 | ✅ | 结果区：`card.grid_propagate(False)` + 固定高度（`theme.DETAILS_CARD_HEIGHT`），简介按窗口宽度重新折行（`_wrap_detail_text` 用等宽近似估算字符容量后交给 `textwrap`），换游戏不再改变卡片高度。记录：`tests/test_history.py`（8 项）覆盖"最新在前 / 只留 10 条 / 时间按本地时区显示 / 清空后文件消失 / 5 种损坏内容一律当作无记录 / 磁盘上被塞 50 条也只读 10 条"；`tests/test_main_window.py` 覆盖抽签即入库（`test_draw_is_recorded_in_history`，3 次抽签 → 记录顺序与盘上内容逐条一致）、上限、清空按钮、**双击某条打开那款游戏的详情**（`test_activating_a_history_row_opens_that_game`）、标题跟随语言 |
+| AC-60 标题栏与范围设置常驻 | ⚠️ 部分 | 范围设置：`tests/test_main_window.py::test_empty_pool_disables_draw_and_keeps_range_controls`（空池时预设控件仍可用、状态行不再挂「展开范围设置」）、`test_pool_list_auto_hides_in_a_short_window`（窗口过矮让位、变高自动恢复、不写配置）、`tests/test_config.py` + `test_window_size.py`（`pool_panel_expanded` 已从 `config.json` 消失）。标题栏：`tests/test_titlebar.py`（7 项）锁定 COLORREF 的 BGR 字节序、Win10（19045）判定为不支持、非 Windows 静默返回 False、`supports_caption_color` 门槛；**真实观感未经人工目视**——本机的受限桌面下 `DwmSetWindowAttribute` 被系统拒绝（该用例按环境 skip，见待补测清单） |
+| AC-61 安装时选语言 | ✅（安装动作待真机） | 读取/消费/清理：`tests/test_language_marker.py`（11 项，假注册表后端）覆盖合法值、大小写、非法值、缺失、删除值并顺带删空键、取走即消失、非 Windows 一律 no-op；优先级：`tests/test_startup_language.py`（5 项）覆盖"标记生效并立即落盘""无标记→配置语言""配置损坏→视为非首次运行但仍清掉陈旧标记""写盘失败只记日志不影响启动"；安装脚本侧由 `tests/test_release.py` 锁定（注册表路径 `Software\SteamGamePicker`、`ValueName: "Language"`、值来自 `{code:AppLanguageCode}` 且函数读 `ActiveLanguage`、中英语言代码与 `app` 常量一致） |
+| AC-62 | 检查仓库文档结构 | ✅ | `tests/test_docs.py::test_development_docs_live_in_one_folder`：`docs/` 下三份开发文档必须存在、仓库根目录不得再有同名文件、**仓库外也不得有重复副本**（历史遗留的 `..\PRD.md` / `..\DEV_PLAN.md` 已删除）；`markdown_files()` 改为 `rglob` 递归，文档目录再分子目录也不会漏查死链 |
+
+### 9.17 v1.10 尺寸预设、对话框与默认语言（D15）
+
+| 编号 | 结果 | 证据 |
+| :--- | :--- | :--- |
+| AC-63 尺寸预设与默认值 | ✅ | `tests/test_ui_smoke.py::test_theme_values_match_prd` 锁定默认尺寸必须是 `(800, 1100)`、最小 `(640, 620)`；`tests/test_window_size.py::test_both_size_presets_are_offered` 锁定选项为 `("800x1100", "1100x800")` 且默认取第一项；`test_window_uses_the_new_default` 断言启动请求的几何就是默认预设。**实机核验**（`_sgp-check/check_layout_v111.py`）：800×1100 下各区块底边 1087 ≤ 1100，游戏列表吸收 729 px 余高；640×620 + 最长简介下底边 607 ≤ 620 |
+| AC-64 「恢复所选」与自定义 | ✅ | `tests/test_window_size.py`：`test_reset_uses_the_selected_preset`（依次选 1100×800 / 800×1100，窗口随之改变且写入 `ui.window_size`）、`test_settings_dialog_exposes_the_size_selector`（拖过窗口后显示「自定义」且有对应选项）、`test_settings_reset_without_a_preset_asks_for_one`（选「自定义」时提示先选预设，**尺寸不被偷偷改掉**）、`test_save_applies_the_selected_size`（保存即套用选中预设） |
+| AC-65 按钮等宽与设置窗口居中 | ✅ | `test_settings_buttons_have_equal_size` 断言保存与取消的 `winfo_reqwidth/reqheight` **完全相等**；`test_settings_dialog_is_centered` 断言偏移等于 `(屏宽 − 窗宽) / 2` 且不为 0。**实机核验**：设置窗口 `415x512+816+320`（居中），两按钮都是 136 × 35 |
+| AC-66 抽签记录弹窗 | ✅ | `tests/test_main_window.py`：`test_history_button_is_only_enabled_with_records`（无记录置灰）、`test_history_dialog_lists_at_most_ten`、`test_history_dialog_is_reused_and_refreshed`（重复点击不叠窗口、记录变化同步刷新）、`test_activating_a_history_row_opens_that_game`、`test_clear_history_button_empties_the_list` + `test_main_window_clear_history_also_empties_the_store`（两个入口共用实现）、`test_history_dialog_title_and_language`；`tests/test_window_size.py::test_history_dialog_is_centered`。**实机核验**：记录窗口 `560x420+752+377`（居中），2 条记录正常列出 |
+| AC-67 默认语言跟随主机 | ✅ | `tests/test_i18n.py`：`language_from_tag` 对 `zh-CN` / `zh-TW` / `zh-Hans` / `Chinese (Simplified)` 判为中文，对 `en-US` / `English (United States)` 判为英文，对 `ja-JP` / `fr-FR` / 空值返回 `None`；`tests/test_startup_language.py`：无标记时取 `system_language()` 并**立即落盘**、有标记时标记优先、配置已存在时不覆盖。**本机实测**：`GetUserDefaultUILanguage` → `zh-CN` → 中文 |
+
+### 9.18 v1.11 尺寸档位与中文安装界面（D16）
+
+| 编号 | 结果 | 证据 |
+| :--- | :--- | :--- |
+| AC-68 680×880 档与下拉条 | ✅ | `tests/test_window_size.py`：`test_all_size_presets_are_offered` 锁定 `("680x880", "800x1100", "1100x800")` 且默认取第一项；`test_window_uses_the_new_default` 断言启动请求 680×880；`test_settings_dialog_exposes_the_size_dropdown` 断言控件是 **`state="readonly"` 的 Combobox**（不能手打）、列出全部预设 + 「自定义」、`select_window_size` 与 `selected_window_size` 双向映射正确；`test_default_selection_is_the_first_preset`；最小宽度由 `test_ui_smoke.py` 锁定为 680。**实机核验**（`_sgp-check/check_layout_v111.py`）：680×880 下各区块底边 867 ≤ 880；680×620 + 最长简介下 607 ≤ 620 |
+| AC-69 中文安装向导 | ✅（编译期证据） | `packaging\ChineseSimplified.isl` 随仓库提供（21,516 字节、UTF-8 无 BOM、417 行、含 `[LangOptions]`/`LanguageName`/`LanguageID`/`LanguageCodePage` 与向导按钮文案），由 `tests/test_release.py::test_bundled_chinese_language_file_is_usable` 逐项校验；`test_installer_can_ship_both_languages` 断言**中文排在英文之前**（Inno 语言列表第一项 = 向导默认语言）。**客观验证**：临时移走语言包重新编译得 21,875,502 字节，带语言包为 21,878,880 字节，**相差 3,378 字节**即中文消息表；编译日志明确 `Reading file: …\packaging\ChineseSimplified.isl`。**向导实际外观仍待人工目视一次**（见第 6 节） |
+
 ---
 
 ## 2. 与 PRD 的实现偏差（全部为有意为之，已记录）
@@ -179,6 +207,9 @@
 | 9 | 额外新增文件 | `app/cancellation.py`、`app/state.py`、`app/images.py`、`app/i18n.py`、`app/ui/animator.py`、`tools/`（这是把 PRD 可维护性要求与验收要求落地的必要补充，行为不超出 PRD） |
 | 10 | 语言选择器里的语言名用**本族写法**呈现（`中文` / `English`），不随界面语言翻译 | 这是语言选择器的通行做法：界面已经是英文时若把「中文」显示成 `Chinese`，看不懂英文的用户反而找不到回中文的入口。因此该项是唯一允许在英文界面出现 CJK 的地方，并在测试中显式白名单化（`test_english_main_window_has_no_cjk`） |
 | 11 | 界面语言是**进程级全局状态**而不是逐控件传入 | 与 Tk 的控件树构建方式匹配（`rebuild_ui` 按语言整体重建），避免几百处构造参数透传；纯逻辑模块（`steamid`/`pool`/`models`/`config`/`cache`）不感知语言，仅经由 `t()` 取文案，仍然可无界面单测 |
+| 12 | 安装包的中文语言包**随仓库提供**（`packaging/ChineseSimplified.isl`） | Inno Setup 官方安装包只带英文与 29 种其它语言，简体中文是官方仓库里的用户贡献翻译，不随安装程序分发，因此本仓库把它一并带上（21,516 字节，UTF-8）。脚本仍写成"文件存在才启用中文"：删掉它也能编译，只是没有中文选项。受其自身许可证约束，分发前请确认条款（见 `packaging/README-installer-language.md`） |
+| 13 | 结果卡片用**固定高度 + 截断**处理超长简介，而不是让卡片长高 | 需求本身就是"方框大小固定、不随游戏变化"。折行按可用宽度重算（`textwrap` + 等宽近似估算字符容量），过长的简介在卡片内截断——这是"高度恒定"必须付出的取舍 |
+| 14 | 窗口几何迁移按**尺寸**判断（< 960 × 700 即升级），而不是只匹配旧的 `800x600` | v1.0.1 存下来的几何串通常带位置后缀（`800x600+120+80`），只比字符串会让几乎所有老用户升不到新默认值。代价：恰好把窗口手动调成小于 960 × 700 的用户也会被升到默认尺寸 |
 
 ---
 
@@ -206,10 +237,78 @@
 | 18 | 由 17 引出的疑问："英文文案更长，会不会在 800×600 下越界？" | 用 Tk 几何数据实测**没有越界**；顺手把 AC-52 的"逐控件越界检测"参数化到英文界面（`test_no_widget_overflows_in_english`），把这个可能性彻底钉住 |
 | 19 | **【发布前实测发现】** 应用更名（D11）后覆盖升级：开始菜单目录仍叫「Steam 游戏抽签器」，里面新旧两套快捷方式并存（4 个），桌面快捷方式也还是旧名 | 安装脚本加 `UsePreviousGroup=no` + `[InstallDelete]` 清掉旧名目录与旧桌面快捷方式；桌面快捷方式任务去掉 `checkedonce`（否则升级时默认不勾，旧快捷方式被清后用户桌面上会什么都不剩）。**已实测**：干净装 1.0.0 → 覆盖装 1.0.1 后只剩一个新名目录（2 个快捷方式）+ 新名桌面快捷方式，配置零改动（AC-56） |
 | 20 | 发布当天的联网复测跑不通：`live_api` 报 `network`，本机到 Steam 全线 502/503/504 | **非程序缺陷**：同一时刻 `api.github.com` 经同一路径返回 200，而 `api.steampowered.com` / `store.steampowered.com` / `steamcommunity.com` 分别返回 504 / 503 / 502（代理直连两种方式都一样），属本机网络到 Steam 的链路问题。程序侧如实报错、未误判为证书问题，也未重试到失控（详见 9.15） |
+| 21 | **【v1.9 开发环境发现，非产品缺陷】** 开发会话的 DSH 沙箱会给"受限子进程新建的目录"写死一份不含当前账号的权限表并打上 Low 完整性标签，导致 `pytest` 的临时目录（`--basetemp`、`tmp_path`）事后既不可枚举也不可删除：`tmp_path` 全线 setup 失败、会话收尾时 `cleanup_dead_symlinks` 抛 `PermissionError` 把整轮退出码毁掉 | 在 `tests/conftest.py` 增加**仅在本沙箱启用**的适配（环境变量 `SGP_SANDBOX_TMPDIR` 打开，见 `tools/pertest.ps1`）：用计数器命名替代"枚举 basetemp 找编号"，并跳过必然失败的死符号链接清理。**未设该变量时不做任何覆盖**，普通环境照常用 pytest 自带 fixture。断言、覆盖范围与测试标准一字未改 |
+| 26 | **【v1.1.0 打包时发现，环境限制】** 沙箱拒绝启动**新构建的可执行文件**：`dist\SteamGamePicker.exe --selftest --report …` 无退出码、无日志、无报告；同一环境里 `where.exe` / `cmd.exe` 正常，`danger-full-access` 模式同样被拒 | **非产品缺陷**：PyInstaller 与 Inno 两步都 exit 0、Inno 编译期校验 `Verification successful`、exe/安装包版本资源实测正确，产物本身没有问题。仅"运行产物自检"这一环无法在本会话完成，已列入第 6 节待人工补跑 |
+| 27 | **【用户实机反馈】** "安装程序只有用管理员权限才能正常打开"：非管理员运行时弹 SmartScreen 警告，点"仍要运行"后报 `Setup was unable to create the directory "…\Temp\is-XXXX.tmp"` / `Error 5 拒绝访问` | **非产物缺陷，是开发工作区的目录限制**。① SmartScreen 警告属已知项（无代码签名，见缺陷 #8），与提权无关；② `Error 5` 的真正原因是安装包位于 `D:\Dev` 工作区内——该目录由 DSH 沙箱管理，文件带 **Low 完整性标签 + NW**、目录权限表含 `Everyone` 拒绝删除子项与 `S-1-4-*` 沙箱条目，从其中启动的进程继承受限令牌、写不进 `%TEMP%`；以管理员运行令牌升到 High 才绕过。**用户把安装包复制到普通目录后，非管理员安装一次成功**（装机实测见第 4 节）。核对确认安装包 UAC 清单为 `asInvoker`（与 v1.0.0 完全一致），全程不请求提权。**产品侧无需改动**；对外分发走 GitHub Release，不经过该工作区 |
+| 28 | **【用户反馈，v1.1.1 修复】** 设置窗口里保存与取消按钮**一大一小**（主按钮内边距更大、样式不同） | 给两个按钮统一内边距（`DIALOG_BUTTON_PAD_X/Y = 24/8`）并让所在两列等宽（`uniform`）；`test_settings_buttons_have_equal_size` 断言两者请求尺寸完全相等（实机 136 × 35） |
+| 29 | **【v1.1.1 开发中发现】** 用户手动摆过的窗口位置**下次启动会被重新居中**：`UiState.from_dict` 里 `migrate_geometry` 无条件剥掉了位置后缀，`geometry_has_position` 因此永远读不到位置 | 位置改为有条件保留：**尺寸未变**时原样保留（用户摆过的窗口还在原地），只有**尺寸被迁移**（旧默认 800×600 → 800×1100）时才丢弃位置并重新居中——高度变了，沿用旧位置容易把窗口顶出屏幕。`clamp_geometry` 同步改为"屏幕内的位置保留、屏幕外的丢弃"，判定标准是至少露出 120 × 40 可抓取区域 |
+| 30 | **【v1.1.1 开发中发现】** "要不要居中"的判定写反了（`_needs_centering = geometry_has_position(...)`），导致首次运行不居中、摆过的位置反被覆盖 | 改为 `not geometry_has_position(...)`；`test_first_run_centers_the_window` / `test_saved_position_is_kept` / `test_migrated_legacy_size_drops_the_stale_position` / `test_user_chosen_size_keeps_its_position` 四条断言钉死这两个方向 |
+| 22 | **【v1.9 回归网发现，测试缺陷】** `tests/test_cache.py::test_image_roundtrip_then_expires` 依赖"真实时间接近代码里写死的 `NOW`（2026-09-19）"：图片过期按**文件 mtime** 判定，而 mtime 来自真实时钟；真实日期越过假时间 + TTL（7 天）后，"推进 8 天"永远算不出过期 | 新增 `stamp()` 辅助把文件 mtime 设成**假时钟的"现在"**，让"推进时间"重新有意义（图片与详情两条过期用例都改）；不动任何产品代码——`GameCache` 的过期逻辑本身是对的 |
+| 23 | **【实机验证发现，v1.9 新代码】** 标题栏配色**三个属性一个都没设成**：写成 `ctypes.sizeof(ctypes.byref(value))` 会抛 `TypeError: this type has no size`，被 `except Exception: continue` 吞掉后表现为"函数返回 False、界面只是颜色没变"。真机复现：三个属性单独调用都是 `HRESULT=0`（成功），而封装函数返回 False | 长度改从 ctypes 对象本身取（`ctypes.sizeof(value)` 配 `ctypes.byref(value)`），并把循环体抽成 `_set_attribute`；`except` 收窄到只兜"取 dwmapi"。补 3 项**不依赖环境**的回归测试（把接缝放在 `_set_attribute` 上，避免在 `ctypes.windll` 打桩——那里会被 ctypes 重新编组参数）。修复后真机验证：`apply_window_colors` 返回 True，三个属性 `HRESULT=0` |
+| 24 | **【实机验证发现，v1.9 新代码】** 结果卡片的简介**永远显示占位文案**：折行逻辑只在"窗口宽度变化"时才执行，而 `render_details` 只 `configure(text=…)`，没有触发重排 | 改为把原始文本存进 `_description_text`，由 `set_detail_description()` 统一入口触发重排；`render_details` / `on_details_error` / 详情加载中三条路径都改走它 |
+| 25 | **【实机验证发现，v1.9 新代码】** 长简介**一行都不折**（实测 120 字显示成一行、被固定高度的卡片裁掉）：`textwrap.wrap` 对没有空格的中文把整段当成一个"长单词"，而参数里 `break_long_words=False` 不会切它 | 改为按**显示宽度逐字断行**（中文 2、ASCII 1，用 `unicodedata.east_asian_width`），并按"卡片可用高度 ÷ 实测行高（21px）"反算最多显示几行、超出加省略号；新增 3 项断言（折行不超行数、超长必截断且有省略号、短文本不动）。实机复测：最小 640×620 + 最长简介下，卡片内 4 行内容底边 437 ≤ 卡片底 453，不再溢出 |
 
 ---
 
 ## 4. 产出物与校验值
+
+**v1.1.1（本次发布）**：
+
+| 产出物 | 路径 | 大小 | SHA256 |
+| :--- | :--- | ---: | :--- |
+| 可执行文件 | `SteamGamePicker\dist\SteamGamePicker.exe` | 20,086,353 | `24CEED5046821A88CFB4BBBE3617B593FEB0636CCA6ACA599133C4724D804E1A` |
+| 安装包 | `SteamGamePicker\dist\SteamGamePicker_Setup.exe` | 21,878,373 | `7033710E3B1041C256793C6C373CDF829B7ED09F25C53738B2725123B0315021` |
+
+> 构建方式：`python -m PyInstaller packaging\SteamGamePicker.spec --noconfirm`（PyInstaller 6.22.3）
+> → `ISCC.exe packaging\installer.iss`（Inno Setup 6.7.3），两步均 exit 0，
+> Inno 编译期校验 `Verification successful`。
+> exe 版本资源实测：`FileVersion 1.1.1.0`、`ProductVersion 1.1.1.0`、产品名 `Steam Game Picker`、
+> 版权 `Copyright (c) 2026 collinszheng. MIT License.`；安装包 `ProductVersion 1.1.1`、
+> `FileDescription Steam Game Picker Setup`；UAC 清单仍为 `requestedExecutionLevel level="asInvoker"`
+> （与 v1.0.0 一致，始终不请求提权）。
+>
+> **安装向导语言：简体中文 + English**。`packaging\ChineseSimplified.isl`（21,516 字节，
+> 取自 Inno Setup 官方仓库 `jrsoftware/issrc` 的 `Files/Languages/`，UTF-8 无 BOM，417 行）
+> 已随仓库提供，编译日志确认 `Reading file: …\packaging\ChineseSimplified.isl`。
+> **客观验证**：把该文件临时移走后重新编译，产物 **21,875,502** 字节；
+> 带该文件时 **21,878,373** 字节，相差约 **2,871** 字节即中文消息表。
+> 中文列为 `[Languages]` **第一项**，因此是向导默认语言。
+>
+> **SmartScreen 提示说明**：v1.1.1 首次运行时可能弹出"Windows 已保护你的电脑"。
+> 这是**未签名程序的常规行为**，不是本次改动引入的问题——核对后确认：
+> v1.0.0 与 v1.1.1 的安装包**都未做代码签名**、**都不带 Zone 标记（MOTW）**，文件属性结构一致。
+> SmartScreen 按**文件哈希**积累信誉，新编译出来的哈希在微软库里完全陌生，因此必然被拦；
+> 此前"不提示"是因为那个哈希已通过网络分发累积了信誉。彻底解决只能做代码签名（见第 6 节与缺陷 #8）。
+>
+> 历史构建（已被覆盖，仅存记录）：v1.1.0 的 exe `98BBE156…`、安装包 `28F39A56…`；
+> v1.0.1 的 exe `4E8A2C41…`、安装包 `D18DBF23…`。
+
+> **打包产物自检未执行**：开发会话的沙箱**拒绝启动新构建的可执行文件**
+> （`dist\SteamGamePicker.exe --selftest` 无退出码、无日志、无报告；同环境下
+> `where.exe` / `cmd.exe` 正常，完全权限模式同样被拒），因此
+> `--selftest` **仍待人工补跑**（见第 6 节）。
+> 但**安装链路已由用户实机验证通过**，见下。
+
+> **✅ 用户实机安装验证（2026-10-02，v1.1.0 产物）**：用户在**非管理员**权限下用当时构建的安装包
+> 完成安装，安装后实测：
+>
+> | 检查项 | 结果 |
+> | :--- | :--- |
+> | 注册表 `HKCU\...\{7C2E5F1A-…}_is1` | `DisplayName=Steam Game Picker`、`DisplayVersion=1.1.0`、`Language=english` |
+> | 安装位置 | `C:\Users\usr\Programs\Dev\SteamGamePicker`（**用户目录，非 Program Files**，符合 `PrivilegesRequired=lowest`） |
+> | 安装目录内的 exe | `FileVersion 1.1.0.0`，SHA256 `98BBE156…` 与 `dist` 里的构建**逐字节一致**（说明安装包内嵌产物无误） |
+> | 快捷方式 | 桌面 1 个 + 开始菜单「应用 / 卸载」2 个 |
+> | 用户配置 | `config.json` / `history.json` / `cache` / `logs` **全部保留**；`config.json` 在安装完成后被写入（说明**装完启动过并正常保存配置**） |
+>
+> **安装时踩到的坑（环境相关，非产物缺陷）**：直接从 `D:\Dev\SteamGamePicker\dist\`
+> 双击安装包会报 `Setup was unable to create the directory
+> "…\Temp\is-XXXX.tmp" / Error 5 拒绝访问`；**把安装包复制到普通用户目录后再运行即正常**。
+> 原因是本开发工作区（`D:\Dev`）由 DSH 沙箱管理：其中文件带 **Low 完整性标签 + NW
+> （禁止向上写）**，且目录权限表含 `Everyone` 拒绝删除子项与 `S-1-4-*` 沙箱条目；
+> 从该目录启动的进程会继承受限令牌，因而写不进 `%TEMP%`。以管理员运行时令牌升到 High
+> 才绕过——这正是"只有管理员能装"的机制。**与安装包本身无关**：其 UAC 清单为
+> `requestedExecutionLevel level="asInvoker"`（与已发布的 v1.0.0 安装包完全一致），
+> 全程不请求提权。分发给最终用户时安装包来自 GitHub Release，不经过该工作区，不受影响。
 
 **已发布 v1.0.1**（对应 [Release v1.0.1](https://github.com/collinszheng/SteamGamePicker/releases/tag/v1.0.1)）：
 
@@ -224,6 +323,9 @@
 > **发布后回验**：从 `https://github.com/collinszheng/SteamGamePicker/releases/latest/download/SteamGamePicker_Setup.exe`
 > 下载实际产物，大小 21,841,800 字节、SHA256 与上表**完全一致**（同时等于本机 `dist` 里的文件），
 > `releases/latest` 已指向 v1.0.1。
+
+> 注：上表的 v1.0.1 文件已被本轮 `dist` 覆盖，哈希仅作历史记录；
+> 需要重新核验 v1.0.1 请从 GitHub Release 下载。
 
 **历史产物（已被 v1.0.1 取代，请勿再分发）**：
 
@@ -275,7 +377,7 @@ v1.7 打包产物（未联网环境，`docs/evidence/selftest-packaged-v17.json`
 ## 5. 复现命令
 
 ```powershell
-# 全量测试（477 项）
+# 全量测试（569 项）
 cd SteamGamePicker
 python -m pytest
 
@@ -302,9 +404,13 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 
 | 项 | 需要的资源 | 步骤 |
 | :--- | :--- | :--- |
-| v1.0.1 联网复测 | 本机网络到 Steam 恢复可达 | `set STEAM_API_KEY=<你的Key>`、`set SGP_PUBLIC_ID=<公开账号SteamID64>`，然后 `python tools\live_check.py`；退出码 0 即通过。发布当天 Steam 全线 502/503/504，未能重跑 |
+| v1.0.1 / v1.1.0 联网复测 | 本机网络到 Steam 恢复可达 | `set STEAM_API_KEY=<你的Key>`、`set SGP_PUBLIC_ID=<公开账号SteamID64>`，然后 `python tools\live_check.py`；退出码 0 即通过。发布当天 Steam 全线 502/503/504，未能重跑 |
 | AC-06 / AC-07 / AC-08 剩余场景 | 一个**资料非公开**的账号、一个**无游戏**的账号、一个**无效 Key** | `set SGP_PRIVATE_ID=<非公开账号>`、`set SGP_EMPTY_ID=<空库账号>`、`set SGP_INVALID_KEY=<无效Key>`，然后 `python tools\live_check.py`；退出码 0 即通过 |
-| AC-36 控件重叠目视 | 你本人 | 把窗口拖到 640×480，确认无重叠与关键信息截断 |
+| AC-36 控件重叠目视 | 你本人 | 把窗口拖到 640×620（v1.9 的新最小尺寸），确认无重叠与关键信息截断 |
+| AC-60 标题栏观感 + AC-59 记录区观感 | 你本人（需要真实桌面，不是受限会话） | 启动应用：① 确认标题栏与界面同色（Win11）；② 连续抽 3~4 次，确认结果框高度不变、记录区按"最新在前"累加；③ 双击一条记录确认能打开该游戏详情；④ 点「清空记录」确认列表与 `history.json` 一起消失 |
+| v1.1.0 真机安装与升级 | 你本人 | ✅ **已完成（2026-10-02）**：非管理员权限安装成功，注册表 1.1.0、exe 哈希与构建一致、配置保留、快捷方式齐全（详见第 4 节）。**仍未做**：从 v1.0.1 **覆盖升级**到 v1.1.0 时"窗口尺寸从 800×600 迁移到 1100×800"的实机确认 |
+| v1.1.1 安装向导中文外观 | 你本人 | 把安装包复制到普通目录后双击：确认向导**默认就是简体中文**（按钮、任务说明、完成页），语言页可切到 English；选 English 装完后应用首次启动应为英文界面 |
+| v1.1.1 打包产物自检 | 你本人（本会话沙箱拒绝启动新构建的 exe） | `.\dist\SteamGamePicker.exe --selftest --report .\dist\selftest.json`；报告里应看到 `version: "1.1.1"`、`frozen: true`、`tk_ok/pillow_ok/requests_ok/truststore_ok: true`。**当前状态：未执行**（注意：若从 `D:\Dev` 直接运行 exe 会被沙箱拒，需先复制到普通目录） |
 | AC-43 干净 Win10 | 一台未装过本程序的 Win10 64 位机器 | 运行安装包 → 启动 → 抽签 → 卸载 |
 | 代码签名（可选） | 代码签名证书 | 用 `signtool` 对 exe 与安装包签名，可消除 SmartScreen 警告 |
 
@@ -327,6 +433,7 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 | [35433711249](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433711249) | `75860d7` | ✅ 通过 | 打包链路实测与产物校验值补记（纯文档） |
 | [35433762566](https://github.com/collinszheng/SteamGamePicker/actions/runs/35433762566) | `f1bc515` | ✅ 通过 | CI 运行记录补记（纯文档） |
 | [35434319033](https://github.com/collinszheng/SteamGamePicker/actions/runs/35434319033) | `9a7b77b` | ✅ 通过 | **v1.0.1 发布提交**：477 项全绿，与本地结果一致 |
+| — | — | ⏳ 待提交 | **v1.1.0 尚未推送**：本轮改动（D14 / AC-57 ~ AC-62）已在本地 **549 项全绿**，但还没有远端 CI 运行记录。按项目规矩，代码改动推送后必须确认 CI 为绿 |
 
 这次失败带来的实际收获（已记入 CHANGELOG）：
 
@@ -335,7 +442,7 @@ ISCC.exe packaging\installer.iss    # ISCC 位于 Inno Setup 安装目录
 2. **测试时区无关化**：期望值改为由同一瞬间在本地时区推导，并新增两条与时区无关的不变量测试
    （ISO 往返保持瞬间不变；同一瞬间的不同偏移写法必须显示为同一个本地时间）。
 3. 验证了测试套件可以在**另一台干净机器**上完整跑通（windows-latest），
-   并且 405 → 407 → 438 → 461 → 477 项用例在两台机器、两个时区、两种界面语言下结果一致。
+   并且 405 → 407 → 438 → 461 → 477 → 555 → **569** 项用例在两台机器、两个时区、两种界面语言下结果一致。
 
 > 注意：这次 CI 通过的是**测试套件**，不等同于 AC-43（在干净 Win10/Win11 上安装并走完主流程），
 > 该项仍列在第 6 节待补测。

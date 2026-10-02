@@ -50,6 +50,17 @@ def cache(store: ConfigStore, clock: FakeClock) -> GameCache:
     return GameCache(store, ttl_days=7, now=clock)
 
 
+def stamp(path: Path, moment: dt.datetime) -> None:
+    """把文件的修改时间设成假时钟的"现在"。
+
+    图片缓存是按**文件 mtime** 判过期的，而 mtime 来自真实时钟。若不同步成假时钟，
+    真实时间一旦比 FakeClock 的固定时刻晚于 TTL，"推进 8 天"就永远算不出过期
+    （这条测试曾在真实日期越过假时间一周后开始失败）。
+    """
+    seconds = moment.timestamp()
+    os.utime(path, (seconds, seconds))
+
+
 def test_snapshot_roundtrip(cache: GameCache) -> None:
     games = [Game(570, "Dota 2", 1234, "abc"), Game(730, "CS2", 0, "")]
     saved = cache.save_snapshot("76561198260031749", games)
@@ -120,6 +131,7 @@ def test_corrupt_detail_is_ignored(cache: GameCache, store: ConfigStore) -> None
 
 def test_image_roundtrip_then_expires(cache: GameCache, clock: FakeClock) -> None:
     path = cache.put_image(570, b"\xff\xd8\xff\xe0fakejpeg")
+    stamp(path, clock.moment)  # 让文件时间与假时钟一致，否则过期判定没有意义
     assert path.exists()
     assert cache.get_image_path(570) == path
 
@@ -131,9 +143,10 @@ def test_missing_image_returns_none(cache: GameCache) -> None:
     assert cache.get_image_path(999) is None
 
 
-def test_detail_expiry_removes_image(cache: GameCache, clock: FakeClock) -> None:
+def test_detail_expiry_removes_image(cache: GameCache, clock: FakeClock, store: ConfigStore) -> None:
     cache.put_detail(GameDetails(appid=5))
     cache.put_image(5, b"x")
+    stamp(store.img_dir / "5.jpg", clock.moment)  # 同上：文件时间跟随假时钟
     clock.advance(days=30)
     assert cache.get_detail(5) is None
     assert cache.get_image_path(5) is None

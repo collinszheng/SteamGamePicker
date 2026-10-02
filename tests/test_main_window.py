@@ -14,7 +14,8 @@ import pytest
 from app.cache import GameCache, parse_iso
 from app.cancellation import CancelToken
 from app.config import PRESET_ALL, PRESET_CUSTOM, PRESET_LOW, PRESET_NEVER, SORT_NAME, SORT_PLAYTIME, Config, ConfigStore
-from app.errors import ACTION_EXPAND, AppError, Err, message, status
+from app.errors import AppError, Err, message, status
+from app.history import MAX_ENTRIES, PickHistory
 from app.models import Game
 from app.pool import apply_preset
 from app.state import AppState, drawing_label
@@ -107,7 +108,7 @@ def test_loaded_games_switch_to_ready(window: MainWindow) -> None:
     assert str(window.draw_button.cget("state")) == "normal"
     assert window.status_text() == f"已加载 3 款 · 3 款参与抽签 · 上次更新 {expected_display}"
     assert len(window.tree.get_children()) == 3
-    assert "3/3" in str(window.pool_toggle_button.cget("text"))
+    assert "3/3" in str(window.range_summary.cget("text"))
 
 
 def test_rows_show_checkbox_and_playtime(window: MainWindow) -> None:
@@ -120,8 +121,8 @@ def test_rows_show_checkbox_and_playtime(window: MainWindow) -> None:
     assert window.tree.set("3", "playtime") == "83.3 小时"
 
 
-def test_empty_pool_disables_draw_and_offers_expand(window: MainWindow) -> None:
-    """AC-19。"""
+def test_empty_pool_disables_draw_and_keeps_range_controls(window: MainWindow) -> None:
+    """AC-19：池为空时禁用抽签，范围控件保持可用（范围设置常驻显示）。"""
     window.set_games(make_games())
     window.excluded = {1, 2, 3}
     window.refresh_state()
@@ -130,13 +131,12 @@ def test_empty_pool_disables_draw_and_offers_expand(window: MainWindow) -> None:
     assert str(window.draw_button.cget("state")) == "disabled"
     assert "没有可抽签的游戏" in window.status_text()
 
-    buttons = [child for child in window.status_actions.winfo_children()]
-    assert any(str(button.cget("text")) == "展开范围设置" for button in buttons)
-    window.toggle_pool_panel(expand=False)
-    for button in buttons:
-        if str(button.cget("text")) == "展开范围设置":
-            button.invoke()
-    assert window.pool_panel_expanded is True
+    # 用户要能直接改范围：预设控件与列表都必须仍然可用
+    for button in window.preset_buttons.values():
+        assert str(button.cget("state")) == "normal"
+    assert window.pool_body_visible is True
+    buttons = [str(child.cget("text")) for child in window.status_actions.winfo_children()]
+    assert "展开范围设置" not in buttons, "范围设置已常驻显示，不再需要展开按钮"
 
 
 def test_drawing_state_locks_inputs(window: MainWindow) -> None:
@@ -173,7 +173,7 @@ def test_toggle_game_marks_custom_preset(window: MainWindow) -> None:
     assert window.current_preset == PRESET_CUSTOM
     assert window.range_var.get() == PRESET_CUSTOM
     assert window.never_var.get() is False and window.low_var.get() is False
-    assert "自定义" in str(window.pool_toggle_button.cget("text"))
+    assert "自定义" in str(window.range_summary.cget("text"))
 
 
 def test_filter_overwrites_manual_selection(window: MainWindow) -> None:
@@ -263,14 +263,20 @@ def test_sort_toggles_direction(window: MainWindow) -> None:
     assert [g.appid for g in window.filtered] == [1, 2, 3]
 
 
-def test_pool_panel_toggle_persists(window: MainWindow, store: ConfigStore) -> None:
-    assert window.pool_panel_expanded is False
-    window.toggle_pool_panel()
-    assert window.pool_panel_expanded is True
-    assert str(window.pool_toggle_button.cget("text")).startswith("▾")
+def test_pool_list_auto_hides_in_a_short_window(window: MainWindow, store: ConfigStore) -> None:
+    """窗口太矮时收起列表区；变高后自动回来，且不写进配置（PRD D14）。"""
+    assert window.pool_body_visible is True
+
+    window.update_pool_body_visibility(theme.POOL_AUTO_COLLAPSE_HEIGHT - 1)
+    assert window.pool_body_visible is False, "窗口太矮时列表应让出高度"
+    assert window._save_job is None, "这是临时布局适配，不该触发配置写盘"
+
+    window.update_pool_body_visibility(theme.POOL_AUTO_COLLAPSE_HEIGHT)
+    assert window.pool_body_visible is True, "窗口够高时列表应自动回来"
 
     window.flush_save()
-    assert store.load().config.ui.pool_panel_expanded is True
+    saved = store.load().config
+    assert not hasattr(saved.ui, "pool_panel_expanded"), "折叠偏好已从配置中移除"
 
 
 def test_manual_selection_persists_to_disk(window: MainWindow, store: ConfigStore) -> None:
@@ -303,6 +309,182 @@ def test_save_is_debounced(window: MainWindow) -> None:
     window.set_games(make_games())
     window.toggle_game(1)
     assert window._save_job is not None, "勾选变更必须走 1 秒防抖"
+
+
+# ------------------------------------------------------------------ 抽签记录
+def test_draw_is_recorded_in_history(window: MainWindow, store: ConfigStore) -> None:
+    """PRD D14：每次抽签都要落进记录，记录窗口同步显示（最新在前）。"""
+    window.history.clear()
+    window.set_games(make_games())
+    window.worker = FakeWorker()
+    window.client = FakeClient()
+
+    winners: list[int] = []
+    for _ in range(3):
+        window.on_draw()
+        window._animator.cancel()
+        assert window.winner is not None
+        winners.append(window.winner.appid)
+
+    dialog = window.open_history()
+    try:
+        rows = [
+            (int(iid), dialog.tree.item(iid, "values")[1]) for iid in dialog.tree.get_children()
+        ]
+        assert len(rows) == 3
+        # 最新一次在最前；名字必须对应记录里的 appid
+        assert rows[0][0] == 0 and rows[0][1] == window.winner.name
+        assert [record.appid for record in window.history.entries] == list(reversed(winners))
+    finally:
+        dialog.close()
+
+    saved = PickHistory(store)
+    assert [record.appid for record in saved.load()] == list(reversed(winners))
+
+
+def test_history_button_is_only_enabled_with_records(window: MainWindow) -> None:
+    """没有记录时按钮置灰，避免点开一个空窗口。"""
+    window.history.clear()
+    window.refresh_state()
+    assert str(window.history_button.cget("state")) == "disabled"
+
+    window.history.record(570, "Dota 2")
+    window.refresh_state()
+    assert str(window.history_button.cget("state")) == "normal"
+
+
+def test_history_dialog_lists_at_most_ten(window: MainWindow, store: ConfigStore) -> None:
+    for index in range(12):
+        window.history.record(1000 + index, f"Game {index}")
+
+    dialog = window.open_history()
+    try:
+        assert len(dialog.tree.get_children()) == MAX_ENTRIES
+    finally:
+        dialog.close()
+    assert len(PickHistory(store).load()) == MAX_ENTRIES
+
+
+def test_history_dialog_is_reused_and_refreshed(window: MainWindow) -> None:
+    """反复点按钮不该叠出多个窗口；记录变化要同步到已打开的窗口。"""
+    first = window.open_history()
+    try:
+        assert window.open_history() is first
+        assert first.tree.get_children() == ()
+
+        window.history.record(570, "Dota 2")
+        window.refresh_history()  # 抽签后主窗口会调用它
+        assert len(first.tree.get_children()) == 1
+    finally:
+        first.close()
+
+    second = window.open_history()  # 关掉之后再点，应该能重新打开
+    try:
+        assert second is not first
+        assert second.exists()
+    finally:
+        second.close()
+
+
+def test_clear_history_button_empties_the_list(window: MainWindow, store: ConfigStore) -> None:
+    window.history.record(570, "Dota 2")
+    dialog = window.open_history()
+    try:
+        assert dialog.tree.get_children()
+
+        dialog.clear_button.invoke()
+
+        assert dialog.tree.get_children() == ()
+        assert str(dialog.clear_button.cget("state")) == "disabled"
+    finally:
+        dialog.close()
+    assert PickHistory(store).load() == []
+
+
+def test_main_window_clear_history_also_empties_the_store(
+    window: MainWindow, store: ConfigStore
+) -> None:
+    """清空既清内存也清盘（记录窗口与主窗口共用同一实现）。"""
+    window.history.record(570, "Dota 2")
+    dialog = window.open_history()
+    try:
+        window.on_clear_history()
+        assert dialog.tree.get_children() == ()
+    finally:
+        dialog.close()
+    assert PickHistory(store).load() == []
+
+
+def test_activating_a_history_row_opens_that_game(window: MainWindow) -> None:
+    """双击记录 = 查看那款游戏的详情（不改变当前抽签结果）。"""
+    requested: list[int] = []
+    window.load_details = lambda appid: requested.append(appid)  # type: ignore[method-assign]
+
+    window.history.record(570, "Dota 2")
+    window.history.record(730, "CS2")
+    dialog = window.open_history()
+    try:
+        dialog.tree.selection_set("1")  # 序号 1 = 较早那次（Dota 2）
+        dialog._on_activate()
+    finally:
+        dialog.close()
+
+    assert requested == [570]
+
+
+def test_history_dialog_title_and_language(window: MainWindow) -> None:
+    window.history.clear()
+    dialog = window.open_history()
+    try:
+        assert "还没有抽签记录" in str(dialog.summary_label.cget("text"))
+
+        window.history.record(570, "Dota 2")
+        dialog.refresh()
+        assert "抽签记录" in str(dialog.window.title())
+        assert "最近 1 次" in str(dialog.summary_label.cget("text"))
+    finally:
+        dialog.close()
+
+
+# ------------------------------------------------------------------ 结果卡片
+def test_long_description_wraps_and_is_truncated_with_ellipsis(window: MainWindow) -> None:
+    """PRD D14：结果卡片高度固定，超长简介必须**折行 + 截断**，而不是把卡片撑开。
+
+    回归点：早先直接用 Tk 的 ``wraplength`` 让 Tk 自己绕，中英混排下的长句中
+    （中文没有空格）会整段当成一个"长单词"不断行，实际显示成一行并被卡片裁掉。
+    """
+    window.set_games(make_games())
+    window.winner = window.games[0]
+    long_text = "这是一段很长的简介，" * 40  # 远超 2 行容量
+    window.set_detail_description(long_text)
+
+    rendered = str(window.detail_description.cget("text"))
+    lines = rendered.split("\n")
+
+    assert len(lines) <= window._detail_line_limit(), "不能超过卡片能放下的行数"
+    assert lines[-1].endswith("…"), "被截断时必须给出省略号"
+    assert len(rendered) < len(long_text), "超长文本必须被截断"
+    assert str(window.detail_description.cget("wraplength")) != "0"
+    assert window._detail_line_limit() == 2, "固定卡片高度下简介应为 2 行"
+
+
+def test_short_description_is_not_touched(window: MainWindow) -> None:
+    window.set_games(make_games())
+    window.winner = window.games[0]
+    window.set_detail_description("很短的一句话")
+
+    assert str(window.detail_description.cget("text")) == "很短的一句话"
+
+
+def test_english_description_also_breaks(window: MainWindow) -> None:
+    """英文句子按单词断行，且不出现省略号（没超长）。"""
+    window.set_games(make_games())
+    window.winner = window.games[0]
+    window.set_detail_description("A short English summary about a game you might enjoy.")
+
+    rendered = str(window.detail_description.cget("text"))
+    assert "…" not in rendered
+    assert "enjoy" in rendered
 
 
 # ------------------------------------------------------------------ 加载流程

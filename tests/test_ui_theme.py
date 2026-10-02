@@ -188,28 +188,29 @@ def test_clam_supports_the_options_we_configure(root) -> None:
     assert "indicatorcolor" not in supported
 
 
-def test_rolling_font_is_compact_enough_for_800x600() -> None:
-    """默认窗口只有 600 高，滚动大字不宜过大（改版实测：28pt 会挤掉游戏列表）。"""
+def test_rolling_font_is_compact_enough_for_the_minimum_window() -> None:
+    """滚动大字不宜过大，否则会挤掉游戏列表（改版实测：28pt 就会挤）。"""
     assert theme.FONT_ROLLING[1] <= 26
     assert theme.FONT_ROLLING_BOUNCE[1] == theme.FONT_ROLLING[1] + 2
 
 
 # -------------------------------------------------------- 窄窗口的布局自适应
-def test_short_window_auto_collapses_pool_panel(
+def test_short_window_auto_collapses_pool_list(
     window: MainWindow, store: ConfigStore
 ) -> None:
-    window.toggle_pool_panel(expand=True)
-    window.flush_save()  # 先清掉"用户展开"这次待写盘
+    """窗口高度不足时列表区自动让位；恢复后自动回来，且不写配置（PRD D14）。"""
+    assert window.pool_body_visible is True
 
-    assert window.should_auto_collapse(theme.POOL_AUTO_COLLAPSE_HEIGHT - 1) is True
-    assert window.should_auto_collapse(theme.POOL_AUTO_COLLAPSE_HEIGHT) is False
-    assert window.should_auto_collapse(0) is False
-
-    window.toggle_pool_panel(expand=False, persist=False)
-
-    assert window.pool_panel_expanded is False
+    window.update_pool_body_visibility(theme.POOL_AUTO_COLLAPSE_HEIGHT - 1)
+    assert window.pool_body_visible is False
     assert window._save_job is None, "自动收起是临时适配，不应触发配置写盘"
-    assert store.load().config.ui.pool_panel_expanded is True, "用户的展开偏好不该被自动收起改掉"
+
+    window.update_pool_body_visibility(0)
+    assert window.pool_body_visible is True, "取不到高度时不应该把列表藏起来"
+
+    window.update_pool_body_visibility(theme.POOL_AUTO_COLLAPSE_HEIGHT)
+    assert window.pool_body_visible is True
+    assert not hasattr(store.load().config.ui, "pool_panel_expanded"), "折叠偏好已从配置移除"
 
 
 def test_configure_binding_registered(window: MainWindow) -> None:

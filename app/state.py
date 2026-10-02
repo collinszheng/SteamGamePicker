@@ -51,6 +51,8 @@ class Controls:
     draw_label: str
     zone3_hint: Message | None  # None 表示"不要覆盖当前内容"
     status_hint: Message | None = None  # None 表示"保留状态行现有文案"
+    #: 「抽签记录」按钮是否可用（有记录才让它可点，见 PRD D14）
+    history_enabled: bool = False
 
 
 def _placeholder() -> Message:
@@ -58,38 +60,78 @@ def _placeholder() -> Message:
     return Message(status("idle").text, LEVEL_MUTED)
 
 
-def controls_for(state: AppState, *, has_result: bool = False) -> Controls:
-    """状态 → 控件启停（严格对齐 PRD 11.1 的表格）。"""
+def controls_for(
+    state: AppState, *, has_result: bool = False, has_history: bool = False
+) -> Controls:
+    """状态 → 控件启停（严格对齐 PRD 11.1 的表格）。
+
+    ``has_history``：是否已有抽签记录——它决定「抽签记录」按钮能否点击。
+    """
     idle_label = draw_label(has_result)
 
     if state is AppState.NO_KEY:
         return Controls(
-            False, LOAD_DISABLED, False, False, idle_label, message(Err.NO_KEY), message(Err.NO_KEY)
+            False,
+            LOAD_DISABLED,
+            False,
+            False,
+            idle_label,
+            message(Err.NO_KEY),
+            message(Err.NO_KEY),
+            history_enabled=has_history,
         )
     if state is AppState.LOADING:
         loading = status("loading")
-        return Controls(False, LOAD_CANCEL, False, False, idle_label, loading, loading)
+        return Controls(
+            False, LOAD_CANCEL, False, False, idle_label, loading, loading, history_enabled=has_history
+        )
     if state is AppState.READY:
         # 已经抽出结果时不得用占位文案覆盖中签游戏名（PRD 11.1 S3："灰色占位**或上次结果**"）
         return Controls(
-            True, LOAD_ENABLED, True, True, idle_label, None if has_result else _placeholder()
+            True,
+            LOAD_ENABLED,
+            True,
+            True,
+            idle_label,
+            None if has_result else _placeholder(),
+            history_enabled=has_history,
         )
     if state is AppState.EMPTY_POOL:
         empty = status("pool_empty")
-        return Controls(True, LOAD_ENABLED, True, False, idle_label, empty, empty)
+        return Controls(
+            True, LOAD_ENABLED, True, False, idle_label, empty, empty, history_enabled=has_history
+        )
     if state is AppState.DRAWING:
-        return Controls(False, LOAD_DISABLED, False, False, drawing_label(), None)
+        return Controls(
+            False, LOAD_DISABLED, False, False, drawing_label(), None, history_enabled=has_history
+        )
     if state is AppState.DETAIL_LOADING:
-        return Controls(True, LOAD_ENABLED, True, True, idle_label, None)
+        return Controls(
+            True, LOAD_ENABLED, True, True, idle_label, None, history_enabled=has_history
+        )
     if state is AppState.OFFLINE:
         return Controls(
-            True, LOAD_ENABLED, True, True, idle_label, None if has_result else _placeholder()
+            True,
+            LOAD_ENABLED,
+            True,
+            True,
+            idle_label,
+            None if has_result else _placeholder(),
+            history_enabled=has_history,
         )
     if state is AppState.ERROR:
-        return Controls(True, LOAD_ENABLED, False, False, idle_label, None)
+        return Controls(
+            True, LOAD_ENABLED, False, False, idle_label, None, history_enabled=has_history
+        )
     # AppState.IDLE
     return Controls(
-        True, LOAD_ENABLED, False, False, idle_label, None if has_result else _placeholder()
+        True,
+        LOAD_ENABLED,
+        False,
+        False,
+        idle_label,
+        None if has_result else _placeholder(),
+        history_enabled=has_history,
     )
 
 

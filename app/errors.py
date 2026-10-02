@@ -25,7 +25,6 @@ LEVEL_MUTED = "muted"
 ACTION_SETTINGS = "settings"
 ACTION_RETRY = "retry"
 ACTION_CANCEL = "cancel"
-ACTION_EXPAND = "expand"
 
 
 class Err(Enum):
@@ -102,7 +101,6 @@ _STATUS_LEVELS: dict[str, str] = {
 }
 
 _STATUS_ACTIONS: dict[str, tuple[str, ...]] = {
-    "pool_empty": (ACTION_EXPAND,),
     "loading": (ACTION_CANCEL,),
 }
 

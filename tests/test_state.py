@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.errors import ACTION_EXPAND, ACTION_SETTINGS
+from app.errors import ACTION_SETTINGS
 from app.state import (
     LOAD_CANCEL,
     LOAD_DISABLED,
@@ -78,7 +78,8 @@ def test_s4_empty_pool() -> None:
     assert controls.pool_enabled is True
     assert controls.zone3_hint is not None
     assert "没有可抽签的游戏" in controls.zone3_hint.text
-    assert controls.zone3_hint.actions == (ACTION_EXPAND,)
+    # 范围设置已常驻显示，不再需要「展开范围设置」这个附加按钮（PRD D14）
+    assert controls.zone3_hint.actions == ()
 
 
 def test_s5_drawing_locks_inputs() -> None:
@@ -153,7 +154,7 @@ def test_status_hint_only_set_where_a_message_exists() -> None:
     assert controls_for(AppState.LOADING).status_hint is not None
     assert controls_for(AppState.LOADING).status_hint.text == "正在读取游戏库…"
     empty = controls_for(AppState.EMPTY_POOL).status_hint
-    assert empty is not None and empty.actions == (ACTION_EXPAND,)
+    assert empty is not None and empty.actions == ()
 
 
 def test_drawn_result_is_never_overwritten_by_placeholder() -> None:

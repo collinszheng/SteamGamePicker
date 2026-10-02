@@ -15,10 +15,11 @@ import tkinter as tk
 from pathlib import Path
 
 from app import APP_NAME, APP_VERSION
+from app import language_marker
 from app.cache import GameCache
 from app.config import ConfigStore, LoadResult
 from app.errors import AppError, status
-from app.i18n import set_language, t
+from app.i18n import set_language, system_language, t
 from app.logging_setup import setup_logging
 from app.steam_api import SteamClient
 from app.trust import system_trust_available
@@ -38,10 +39,48 @@ def bootstrap() -> tuple[ConfigStore, object, LoadResult]:
     return store, logger, result
 
 
+def resolve_startup_language(store: ConfigStore, result: LoadResult, logger: object) -> str:
+    """决定这次启动用哪种界面语言（PRD D14）。
+
+    优先级：**已有配置文件 → 配置里的语言**；否则用安装时选择的语言（若有）；
+    再否则**跟随主机语言**（中文系统给中文，其余给英文）。
+    安装标记只服务首次运行，取走后即删除。
+    """
+    if result.corrupted:
+        # 有配置文件（只是坏了，已备份重置）→ 视为非首次运行，但仍清掉陈旧标记
+        language_marker.take_first_run_language()
+        return result.config.language
+
+    marker = language_marker.take_first_run_language()
+    if not marker:
+        # 用户从未做过选择：跟随主机语言，并立刻落盘，之后就以配置为准
+        detected = system_language()
+        if detected == result.config.language:
+            return detected
+        return _persist_language(store, result, logger, detected)
+
+    return _persist_language(store, result, logger, marker)
+
+
+def _persist_language(store: ConfigStore, result: LoadResult, logger: object, language: str) -> str:
+    """把"首次运行解析出的语言"写进配置。
+
+    必须立刻落盘：标记已被删除，若用户"装完就用、没动设置就退出"，
+    下次启动就会退回按主机语言重新推断——把选择固定下来才符合预期。
+    """
+    result.config.language = language
+    try:
+        store.save(result.config)
+    except OSError:  # pragma: no cover - 写盘失败只是丢一次设置
+        if hasattr(logger, "warning"):
+            logger.warning("首次运行的语言未能写入配置")  # type: ignore[union-attr]
+    return language
+
+
 def build_app() -> tuple[tk.Tk, MainWindow]:
     """组装可运行的应用（测试与 main() 共用）。"""
     store, logger, result = bootstrap()
-    set_language(result.config.language)  # 界面语言来自配置，默认中文
+    set_language(resolve_startup_language(store, result, logger))  # 配置或安装时的选择
     root = tk.Tk()
     worker = Worker(root, logger=logger)  # type: ignore[arg-type]
     client = SteamClient(result.config.api_key)

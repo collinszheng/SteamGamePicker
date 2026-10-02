@@ -11,11 +11,12 @@
 ;   * 支持静默安装（Inno 原生 /VERYSILENT）
 ;   * 卸载时询问是否同时删除配置与缓存，默认保留（PRD 6.5）
 ;   * 覆盖升级保留安装目录与用户配置；应用更名（1.0.1）后自动清理旧名的快捷方式
+;   * 安装时可选语言，选择结果写入 HKCU 供应用首次运行继承（1.1.0）
 
 #define AppName "Steam Game Picker"
 ; 目录名与可执行文件名保持 ASCII 不变（改名不影响已安装路径与用户配置）
 #define AppNameEn "SteamGamePicker"
-#define AppVersion "1.0.1"
+#define AppVersion "1.1.1"
 #define AppPublisher "Steam Game Picker"
 #define AppExeName "SteamGamePicker.exe"
 #define SourceExe "..\dist\SteamGamePicker.exe"
@@ -23,6 +24,9 @@
 ; 1.0.0 及更早版本用的显示名：升级时要把它留下的开始菜单目录 /
 ; 桌面快捷方式清掉，否则用户会同时看到新旧两套快捷方式（实测确实会残留）
 #define LegacyAppName "Steam 游戏抽签器"
+; 安装语言 → 应用语言代码（应用只认 zh / en）
+#define LanguageZh "zh"
+#define LanguageEn "en"
 
 [Setup]
 AppId={{7C2E5F1A-3B4D-4E6F-9A10-5D8C7B6A4E32}
@@ -51,12 +55,20 @@ ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
 
 [Languages]
-; 若脚本目录下存在官方中文语言包则用中文，否则退回自带英文（不影响应用本身的中文界面）
+; 列表顺序 = 语言选择页的顺序，且**第一项是安装向导的默认语言**。
+; 因此把中文放在最前：中文用户双击安装包直接看到中文向导，英文用户下拉切换。
+; 中文语言包（官方仓库的 ChineseSimplified.isl）随仓库提供；万一缺失也能编译，
+; 只是没有中文选项（见 README-installer-language.md）。
 #if FileExists(AddBackslash(SourcePath) + "ChineseSimplified.isl")
 Name: "chinese"; MessagesFile: "ChineseSimplified.isl"
-#else
-Name: "english"; MessagesFile: "compiler:Default.isl"
 #endif
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Registry]
+; 把安装时选择的语言记到当前用户下，供应用首次运行继承（PRD D14）：
+; 应用读完即删除该值；uninsdeletekey 保证只装不跑时卸载不留残留。
+Root: HKCU; Subkey: "Software\SteamGamePicker"; ValueType: string; ValueName: "Language"; \
+    ValueData: "{code:AppLanguageCode}"; Flags: uninsdeletekey
 
 [Tasks]
 ; 不带 checkedonce：更名后旧名的桌面快捷方式会被删掉，
@@ -80,6 +92,15 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 Filename: "{app}\{#AppExeName}"; Description: "立即运行 {#AppName}"; Flags: nowait postinstall skipifsilent
 
 [Code]
+function AppLanguageCode(Param: String): String;
+{ 把安装时选中的语言映射成应用认的语言代码（PRD D14）。 }
+begin
+  if ActiveLanguage = 'chinese' then
+    Result := '{#LanguageZh}'
+  else
+    Result := '{#LanguageEn}';
+end;
+
 { PRD 6.5：卸载时询问是否同时删除配置与缓存，默认「否」（保留）。
   静默卸载（/VERYSILENT）下不弹窗，直接保留数据，避免自动化部署卡住。 }
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);

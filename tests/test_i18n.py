@@ -149,7 +149,6 @@ def test_chinese_messages_unchanged() -> None:
 # ------------------------------------------------------- 英文界面不得残留中文
 def test_english_main_window_has_no_chinese(root, store: ConfigStore) -> None:
     window = make_window(root, store, LANGUAGE_EN)
-    window.toggle_pool_panel(expand=True)
     window.toggle_game(2)
     window.winner = GAMES[2]
     window._on_anim_frame(window.winner.name, True)
@@ -190,7 +189,6 @@ def test_chinese_main_window_has_chinese(root, store: ConfigStore) -> None:
 # ------------------------------------------------------------------ 语言切换
 def test_language_switch_rebuilds_ui_and_keeps_state(root, store: ConfigStore) -> None:
     window = make_window(root, store, LANGUAGE_ZH)
-    window.toggle_pool_panel(expand=True)
     window.toggle_game(2)
     window.search_var.set("Gamma")
     window.apply_search()
@@ -216,7 +214,7 @@ def test_language_switch_rebuilds_ui_and_keeps_state(root, store: ConfigStore) -
     assert window.winner is not None and window.winner.appid == 3
     assert str(window.rolling_label.cget("text")) == "Gamma Sim"
     assert str(window.detail_name.cget("text")) == "Gamma Sim"
-    assert window.pool_panel_expanded is True
+    assert window.pool_body_visible is True
     assert window.state is before_state
 
 

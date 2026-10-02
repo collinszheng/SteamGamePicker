@@ -10,13 +10,16 @@ M4 阶段实装区0–区2；区3 / 区4 先建好控件，交互在 M5 接上�
 
 from __future__ import annotations
 
+import textwrap
 import tkinter as tk
+import unicodedata
 from collections.abc import Callable, Iterable, Sequence
 from logging import Logger
 from tkinter import ttk
 from typing import Any
 
 from app import APP_NAME
+from app import config as config_module
 from app.cache import GameCache, display_time
 from app.config import (
     PRESET_ALL,
@@ -28,7 +31,6 @@ from app.config import (
 )
 from app.errors import (
     ACTION_CANCEL,
-    ACTION_EXPAND,
     ACTION_RETRY,
     ACTION_SETTINGS,
     LEVEL_MUTED,
@@ -38,6 +40,7 @@ from app.errors import (
     message,
     status,
 )
+from app.history import PickHistory
 from app.images import load_photo_image, load_photo_image_from_file
 from app.i18n import get_language, set_language, t
 from app.logging_setup import get_logger
@@ -73,8 +76,10 @@ from app.state import (
     infer_state,
 )
 from app.steamid import parse_input
-from app.ui import appicon, theme
+from app.ui import appicon, theme, titlebar
 from app.ui.animator import BOUNCE_MS, DrawAnimator
+from app.ui.dialog_utils import center_window
+from app.ui.history_dialog import HistoryDialog
 from app.ui.settings_dialog import AboutDialog, SettingsDialog
 
 SEARCH_DEBOUNCE_MS = 300
@@ -84,7 +89,6 @@ ACTION_LABEL_KEYS = {
     ACTION_RETRY: "action.retry",
     ACTION_SETTINGS: "action.settings",
     ACTION_CANCEL: "action.cancel",
-    ACTION_EXPAND: "action.expand",
 }
 
 
@@ -121,6 +125,8 @@ class MainWindow:
         self.games: list[Game] = []
         self.excluded: set[int] = set(config.excluded_appids)
         self.filtered: list[Game] = []
+        self.history = PickHistory(store)
+        self.history.load()
         self.query = ""
         self.sort_key = config.ui.sort_key
         self.sort_desc = config.ui.sort_desc
@@ -143,6 +149,8 @@ class MainWindow:
         self._animator = DrawAnimator(root)
         self._settings_dialog: SettingsDialog | None = None
         self._about_dialog: AboutDialog | None = None
+        self._history_dialog: HistoryDialog | None = None
+        self._needs_centering = False  # _build 里由 _initial_geometry() 决定
         self._refresh_task: Any = None
 
         self._build()
@@ -154,12 +162,11 @@ class MainWindow:
         # Windows 原生 ttk 主题不接受自定义配色，这里统一切换到 Steam 深色风格
         self.style = theme.apply_theme(self.root)
         self.root.title(APP_NAME)
-        self.root.geometry(
-            self.config.ui.window_geometry or f"{theme.WINDOW_DEFAULT_WIDTH}x{theme.WINDOW_DEFAULT_HEIGHT}"
-        )
+        self.root.geometry(self._initial_geometry())
         self.root.minsize(theme.WINDOW_MIN_WIDTH, theme.WINDOW_MIN_HEIGHT)
         self.root.configure(bg=theme.COLOR_BG)
         appicon.apply_window_icon(self.root)  # 源码运行时也显示应用图标（PRD D13）
+        titlebar.apply_window_colors(self.root)  # 标题栏跟随应用配色（PRD D14）
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
         self.root.bind("<Configure>", self._on_root_configure)
 
@@ -177,6 +184,77 @@ class MainWindow:
         self._build_pool(outer)
         self._build_draw(outer)
         self._build_details(outer)
+        self._apply_details_size()
+        if self._needs_centering:
+            # 首次运行（或旧配置没存位置）时窗口默认在左上角，主动摆到屏幕中间
+            self.root.update_idletasks()
+            center_window(self.root)
+
+    def _initial_geometry(self) -> str:
+        """启动时的窗口几何：丢弃可能落在屏幕外的位置偏移，并限制在屏幕内。
+
+        同时决定"要不要居中"：只有没保存过**位置**（首次运行、或旧配置里只有尺寸）
+        时才居中，用户自己摆过的位置必须尊重。
+        """
+        saved = self.config.ui.window_geometry or config_module.DEFAULT_GEOMETRY
+        # 只有"没保存过位置"才居中：首次运行、或旧配置里只存了尺寸
+        self._needs_centering = not config_module.geometry_has_position(saved)
+        try:
+            screen_width = int(self.root.winfo_screenwidth())
+            screen_height = int(self.root.winfo_screenheight())
+        except tk.TclError:  # pragma: no cover - 无显示环境
+            return saved
+        return config_module.clamp_geometry(saved, screen_width, screen_height)
+
+    def apply_default_geometry(self, size: str | None = None) -> str:
+        """按**指定预设**调整主窗口尺寸（设置窗口里的按钮，PRD D14）。
+
+        用户要求：恢复默认的值 = 尺寸选择框内的值，所以这里接受一个预设
+        （``800x1100`` / ``1100x800``）；不传则用当前 ``ui.window_size``。
+        返回实际应用的几何串（会按屏幕收敛）。
+        """
+        target = size or self.config.ui.window_size or config_module.DEFAULT_GEOMETRY
+        geometry = self._resolved_preset_geometry(target)
+        self.config.ui.window_size = target
+        self.config.ui.window_geometry = geometry
+        try:
+            self.root.geometry(geometry)
+            self.root.update_idletasks()
+            if self._preset_fits(target):
+                center_window(self.root)  # 放得下才居中；被屏幕压缩过就留在左上
+        except tk.TclError:  # pragma: no cover - 控件已销毁
+            return geometry
+        self._save_config()
+        return geometry
+
+    def _resolved_preset_geometry(self, size: str) -> str:
+        """把预设尺寸按屏幕收敛成可用的几何串。"""
+        try:
+            screen_width = int(self.root.winfo_screenwidth())
+            screen_height = int(self.root.winfo_screenheight())
+        except tk.TclError:  # pragma: no cover
+            return config_module.DEFAULT_GEOMETRY
+        return config_module.clamp_geometry(size, screen_width, screen_height)
+
+    def _preset_fits(self, size: str) -> bool:
+        """该预设能否完整放进屏幕（放不下就不居中，免得窗口顶部被推出屏幕）。"""
+        parsed = config_module.parse_geometry(size)
+        if parsed is None:
+            return False
+        try:
+            return parsed[0] <= self.root.winfo_screenwidth() and parsed[1] <= self.root.winfo_screenheight()
+        except tk.TclError:  # pragma: no cover
+            return False
+
+    def _initial_geometry_default(self) -> str:
+        try:
+            screen_width = int(self.root.winfo_screenwidth())
+            screen_height = int(self.root.winfo_screenheight())
+        except tk.TclError:  # pragma: no cover
+            return config_module.DEFAULT_GEOMETRY
+        return config_module.clamp_geometry(
+            config_module.DEFAULT_GEOMETRY, screen_width, screen_height
+        )
 
     # 区0 顶栏（全宽深色条 + Steam 蓝强调线）--------------------------------
     def _build_header(self, parent: tk.Misc) -> None:
@@ -253,10 +331,11 @@ class MainWindow:
         frame.columnconfigure(0, weight=1)
         frame.rowconfigure(1, weight=1)
 
-        self.pool_toggle_button = ttk.Button(
-            frame, text="", style=theme.STYLE_LINK_BUTTON, command=self.toggle_pool_panel
+        # 范围设置常驻显示（不再提供收起功能），这一行只做"当前范围 + 数量"的信息展示
+        self.range_summary = ttk.Label(
+            frame, text="", style=theme.STYLE_CARD_MUTED_LABEL, foreground=theme.COLOR_MUTED
         )
-        self.pool_toggle_button.grid(row=0, column=0, sticky="w", pady=(0, theme.PAD_TIGHT))
+        self.range_summary.grid(row=0, column=0, sticky="w", pady=(0, theme.PAD_TIGHT))
 
         # 列表区做成 Steam 风格的卡片（1px 描边 + 深色底）
         body_border, body = theme.make_card(frame)
@@ -360,7 +439,7 @@ class MainWindow:
             columns=("check", "name", "playtime"),
             show="headings",
             selectmode="browse",
-            height=6,
+            height=theme.POOL_TREE_HEIGHT,
             style=theme.STYLE_TREE,
         )
         self.tree.heading("check", text="")
@@ -384,7 +463,8 @@ class MainWindow:
         self.tree.bind("<Return>", self._on_tree_return)
 
         self.pool_frame = frame
-        self.pool_panel_expanded = bool(self.config.ui.pool_panel_expanded)
+        #: 列表区的可见性只由"窗口太矮时自动让位"控制，不再是用户可切换的状态
+        self.pool_body_visible = True
         self._apply_pool_panel_visibility()
 
     # 区3 抽签 ---------------------------------------------------------------
@@ -403,15 +483,25 @@ class MainWindow:
         )
         self.rolling_label.grid(row=0, column=0, sticky="ew", pady=(theme.PAD_TIGHT, theme.PAD_TIGHT))
 
-        # 主行动按钮用 Steam 商店的绿色 CTA
+        # 主行动按钮用 Steam 商店的绿色 CTA；旁边放「抽签记录」（PRD D14）
+        button_row = ttk.Frame(frame, style=theme.STYLE_FRAME)
+        button_row.grid(row=1, column=0)
         self.draw_button = ttk.Button(
-            frame,
+            button_row,
             text=t("ui.draw"),
             style=theme.STYLE_ACCENT_BUTTON,
             command=self.on_draw,
             width=theme.DRAW_BUTTON_WIDTH,
         )
-        self.draw_button.grid(row=1, column=0)
+        self.draw_button.grid(row=0, column=0, padx=(0, theme.PAD_INNER))
+        self.history_button = ttk.Button(
+            button_row,
+            text=t("ui.history_open"),
+            style=theme.STYLE_BUTTON,
+            command=self.open_history,
+            padding=(theme.DIALOG_BUTTON_PAD_X, theme.DIALOG_BUTTON_PAD_Y),
+        )
+        self.history_button.grid(row=0, column=1)
         self.draw_frame = frame
 
     # 区4 结果 ---------------------------------------------------------------
@@ -420,13 +510,22 @@ class MainWindow:
         frame.grid(row=3, column=0, sticky="ew")
         frame.columnconfigure(0, weight=1)
 
+        #: 结果文字的原始内容：窗口变化时按新宽度重新折行（PRD D14）
+        self._description_text = t("ui.details_placeholder")
+        self._description_width = 0
+        self._rendered_description_width = 0
+
         border, card = theme.make_card(frame, padding=6)
         border.grid(row=0, column=0, sticky="ew")
+        # 固定高度：无论有没有抽签、抽到哪款游戏，这块地方都一样高，
+        # 否则每次抽签界面都会上下跳（PRD D14）。
+        card.configure(height=theme.DETAILS_CARD_HEIGHT)
+        card.grid_propagate(False)
         card.columnconfigure(1, weight=1)
 
         # 封面外再加 1px 描边，像 Steam 的截图框
         self.cover_box = ttk.Frame(card, style=theme.STYLE_CARD_BORDER_FRAME)
-        self.cover_box.grid(row=0, column=0, rowspan=4, sticky="nw")
+        self.cover_box.grid(row=0, column=0, rowspan=3, sticky="nw")
         self.cover_label = ttk.Label(
             self.cover_box,
             text="",
@@ -450,11 +549,13 @@ class MainWindow:
             text=t("ui.details_placeholder"),
             style=theme.STYLE_CARD_MUTED_LABEL,
             foreground=theme.COLOR_MUTED,
-            anchor="w",
+            anchor="nw",
             justify="left",
             wraplength=400,
         )
-        self.detail_description.grid(row=1, column=1, sticky="ew", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0))
+        self.detail_description.grid(
+            row=1, column=1, sticky="ew", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0)
+        )
         self.detail_meta = ttk.Label(
             card,
             text="",
@@ -463,7 +564,9 @@ class MainWindow:
             foreground=theme.COLOR_ACCENT,
             anchor="w",
         )
-        self.detail_meta.grid(row=2, column=1, sticky="ew", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0))
+        self.detail_meta.grid(
+            row=2, column=1, sticky="w", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0)
+        )
         self.detail_extra = ttk.Label(
             card,
             text="",
@@ -472,15 +575,150 @@ class MainWindow:
             foreground=theme.COLOR_TEXT_STRONG,
             anchor="w",
         )
-        self.detail_extra.grid(row=3, column=1, sticky="ew", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0))
+        self.detail_extra.grid(
+            row=3, column=1, sticky="w", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0)
+        )
         self.detail_retry_button = ttk.Button(
             card, text=t("ui.retry"), style=theme.STYLE_BUTTON, command=self.retry_details, width=10
         )
         self.detail_retry_button.grid(
-            row=4, column=1, sticky="w", padx=(theme.PAD_INNER, 0), pady=(theme.PAD_TIGHT, 0)
+            row=3, column=1, sticky="e", padx=(theme.PAD_INNER, 0)
         )
         self.detail_retry_button.grid_remove()
+        self.details_card = card
+        # 窗口宽度变化时重新折行，卡片高度保持不变（PRD D14）
+        card.bind("<Configure>", self._on_details_configure)
         self.details_frame = frame
+
+    def _wrap_detail_text(self, text: str, width: int) -> str:
+        """按像素宽度把详情简介折行，并截到卡片放得下的行数（末行加省略号）。
+
+        为什么不用 Tk 的原生 ``wraplength`` 让它自己绕：卡片高度是固定的
+        （``grid_propagate(False)``），Tk 会把放不下的行直接裁掉、也不给提示，
+        看起来像"简介被吃了"。这里先按**可用高度反算能放几行**，再把多余的字符
+        截掉并加省略号，行为可预测、也能被断言。
+
+        为什么不用 :mod:`textwrap`：中文没有空格，整段会被当成一个"长单词"，
+        而 ``break_long_words=False`` 不会切它——实测 120 字简介一行都没断。
+        这里按**显示宽度**逐字断行（中文 2、ASCII 1），中英混排都成立。
+        """
+        if not text:
+            return ""
+        lines = self._break_lines(text, self._columns_for_width(width))
+        limit = self._detail_line_limit()
+        if len(lines) <= limit:
+            return "\n".join(lines)
+
+        kept = lines[:limit]
+        kept[-1] = kept[-1][: max(1, len(kept[-1]) - 1)].rstrip() + "…"
+        return "\n".join(kept)
+
+    @staticmethod
+    def _char_width(char: str) -> int:
+        """粗略的显示宽度：东亚宽字符算 2，其余算 1。"""
+        return 2 if unicodedata.east_asian_width(char) in "WF" else 1
+
+    @classmethod
+    def _break_lines(cls, text: str, columns: int) -> list[str]:
+        """按显示宽度断行；已有换行的原样保留。"""
+        lines: list[str] = []
+        for paragraph in text.splitlines() or [""]:
+            current = ""
+            used = 0
+            for char in paragraph:
+                size = cls._char_width(char)
+                if used + size > columns and current:
+                    lines.append(current)
+                    current, used = "", 0
+                current += char
+                used += size
+            lines.append(current)
+        return lines
+
+    @staticmethod
+    def _columns_for_width(width: int) -> int:
+        """按像素宽度估算可容纳的显示宽度（以 ASCII 字符为单位）。"""
+        return max(16, int(width / max(1, theme.FONT_BODY[1] * 0.62)))
+
+    @staticmethod
+    def _detail_line_limit() -> int:
+        """结果卡片里简介最多能显示几行（按固定高度与实测行高算）。
+
+        实测（Windows 11、微软雅黑 UI 10pt）：一行为 21 px，游戏名 32 px、元信息与
+        售价各 23 px、网格间距 2×4 px、内边距 2×7 px —— 合计 96 px 的固定占用。
+        """
+        line_height = 21
+        return max(1, (theme.DETAILS_CARD_HEIGHT - theme.DETAILS_TEXT_RESERVE) // line_height)
+
+    def set_detail_description(self, text: str) -> None:
+        """设置结果区简介（原始文本），并按当前宽度立即重排。"""
+        self._description_text = text or ""
+        self._render_detail_description(force=True)
+
+    def _render_detail_description(self, *, force: bool = False) -> None:
+        if self.detail_description is None:  # pragma: no cover - 构建期
+            return
+        width = self._description_width or max(120, self._window_width() // 2)
+        if not force and width == self._rendered_description_width:
+            return
+        self._description_width = width
+        self._rendered_description_width = width
+        self.detail_description.configure(
+            wraplength=width, text=self._wrap_detail_text(self._description_text, width)
+        )
+
+    def _apply_details_size(self) -> None:
+        """结果卡片跟随窗口宽度重新排版：高度固定，只有折行宽度跟着变。"""
+        try:
+            window_width = self._window_width()
+            card_width = int(getattr(self.root, "winfo_width")())
+        except (tk.TclError, TypeError):  # pragma: no cover
+            return
+        if not card_width or card_width < 2:
+            card_width = theme.WINDOW_DEFAULT_WIDTH
+        self._description_width = max(
+            120,
+            card_width
+            - theme.header_image_size(window_width)[0]
+            - 2 * theme.PAD_INNER
+            - 2 * 6,
+        )
+        self._render_detail_description(force=True)
+
+    def _on_details_configure(self, event: Any) -> None:
+        if getattr(event, "widget", None) is not self.details_card:
+            return
+        self._apply_details_size()
+
+
+    # 区5 抽签记录窗口 -------------------------------------------------------
+    def open_history(self) -> HistoryDialog:
+        """打开抽签记录窗口 W6（PRD D14）；已打开则置顶，不重复造窗口。"""
+        if self._history_dialog is not None and self._history_dialog.exists():
+            self._history_dialog.refresh()
+            self._history_dialog.lift()
+            return self._history_dialog
+        dialog = HistoryDialog(
+            self.root,
+            history=self.history,
+            on_activate=self.on_history_appid,
+        )
+        self._history_dialog = dialog
+        return dialog
+
+    def on_history_appid(self, appid: int) -> None:
+        """记录窗口里双击某条 → 主窗口显示那款游戏的详情。"""
+        self.load_details(appid)
+
+    def refresh_history(self) -> None:
+        """记录变化后同步已打开的记录窗口（没开就什么都不做）。"""
+        if self._history_dialog is not None and self._history_dialog.exists():
+            self._history_dialog.refresh()
+
+    def on_clear_history(self) -> None:
+        """清空记录（供记录窗口与测试调用）。"""
+        self.history.clear()
+        self.refresh_history()
 
     # ================================================================= 状态
     def refresh_state(self, *, loading: bool = False, drawing: bool = False, detail_loading: bool = False) -> None:
@@ -501,9 +739,12 @@ class MainWindow:
     def set_state(self, state: AppState) -> None:
         """唯一的状态出口：按 PRD 11.1 设置控件启停。"""
         self.state = state
-        controls = controls_for(state, has_result=self.winner is not None)
+        controls = controls_for(
+            state, has_result=self.winner is not None, has_history=bool(self.history.entries)
+        )
 
         self._set_enabled(self.identity_entry, controls.identity_enabled)
+        self._set_enabled(self.history_button, controls.history_enabled)
         if controls.load_mode == LOAD_CANCEL:
             self.load_button.configure(text=t("ui.cancel"), command=self.cancel_load, state="normal")
         elif controls.load_mode == LOAD_DISABLED:
@@ -515,7 +756,7 @@ class MainWindow:
                 text=t("ui.load_library"), command=self.on_load_button, state="normal"
             )
         self._set_enabled(self.refresh_button, controls.load_mode == LOAD_ENABLED)
-        self._set_enabled(self.pool_toggle_button, controls.pool_enabled or state is AppState.EMPTY_POOL)
+        self._set_enabled(self.range_summary, controls.pool_enabled)
         self._set_tree_enabled(controls.pool_enabled)
         for button in self.preset_buttons.values():
             self._set_enabled(button, controls.pool_enabled)
@@ -609,20 +850,28 @@ class MainWindow:
         return status("loaded", total=total, available=pool_size, updated=self.snapshot_display())
 
     # ================================================================= 区2 行为
-    def toggle_pool_panel(self, expand: bool | None = None, *, persist: bool = True) -> None:
-        self.pool_panel_expanded = (
-            (not self.pool_panel_expanded) if expand is None else bool(expand)
-        )
-        self._apply_pool_panel_visibility()
-        if persist:
-            self._schedule_save()
+    def _apply_pool_panel_visibility(self) -> None:
+        """按可见性标记显示 / 隐藏游戏列表区（范围设置本身常驻显示）。"""
+        if self.pool_body_visible:
+            self.pool_body.grid()
+        else:
+            self.pool_body.grid_remove()
+        self._refresh_range_summary()
 
-    def should_auto_collapse(self, height: int) -> bool:
-        """窗口高度不足时是否该收起列表区（PRD 2.3）。"""
-        return bool(height) and height < theme.POOL_AUTO_COLLAPSE_HEIGHT and self.pool_panel_expanded
+    def update_pool_body_visibility(self, height: int) -> None:
+        """窗口太矮时收起游戏列表区，把高度让给抽签区（PRD 2.3）。
+
+        范围设置（预设、搜索、批量按钮）不再可收起，因此这里只影响列表本身；
+        窗口拉高后列表自动回来（旧版靠用户手动展开，属于多余操作）。
+        """
+        visible = not (height and height < theme.POOL_AUTO_COLLAPSE_HEIGHT)
+        if visible == self.pool_body_visible:
+            return
+        self.pool_body_visible = visible
+        self._apply_pool_panel_visibility()
 
     def _on_root_configure(self, event: Any) -> None:
-        """窗口太矮时自动收起列表区（PRD 2.3）；这是临时布局适配，不写回配置。"""
+        """窗口尺寸变化：太矮时让出列表区高度，否则恢复。"""
         if getattr(event, "widget", None) is not self.root:
             return
         try:
@@ -630,24 +879,14 @@ class MainWindow:
                 return
         except tk.TclError:  # pragma: no cover - 控件已销毁
             return
-        if self.should_auto_collapse(int(getattr(event, "height", 0) or 0)):
-            self.toggle_pool_panel(expand=False, persist=False)
+        self.update_pool_body_visibility(int(getattr(event, "height", 0) or 0))
 
-    def _apply_pool_panel_visibility(self) -> None:
-        if self.pool_panel_expanded:
-            self.pool_body.grid()
-        else:
-            self.pool_body.grid_remove()
-        self._refresh_pool_header()
-
-    def _refresh_pool_header(self) -> None:
+    def _refresh_range_summary(self) -> None:
         self._sync_range_widgets()
-        arrow = "▾" if self.pool_panel_expanded else "▸"
         total, pool_size = summary(self.games, self.excluded)
-        self.pool_toggle_button.configure(
+        self.range_summary.configure(
             text=t(
-                "ui.pool_header",
-                arrow=arrow,
+                "ui.range_summary",
                 preset=range_label(self.range_state),
                 available=pool_size,
                 total=total,
@@ -683,7 +922,7 @@ class MainWindow:
         """范围控件的统一出口：重算 → 刷新 → 提示 → 存盘。"""
         self._sync_range_widgets()
         self._refresh_tree_checks()
-        self._refresh_pool_header()
+        self._refresh_range_summary()
         self.set_status(msg)
         self.refresh_state()
         self._schedule_save()
@@ -714,7 +953,7 @@ class MainWindow:
 
     def _after_manual_change(self, *, refresh_state: bool = True) -> None:
         self._sync_range_widgets()
-        self._refresh_pool_header()
+        self._refresh_range_summary()
         if refresh_state:
             self.refresh_state()
         else:
@@ -814,7 +1053,7 @@ class MainWindow:
             button.configure(text=self.bulk_label(mode))
         total, pool_size = summary(self.games, self.excluded)
         self.selected_label.configure(text=t("ui.selected_count", count=pool_size))
-        self._refresh_pool_header()
+        self._refresh_range_summary()
 
     def _on_tree_click(self, event: tk.Event) -> None:
         iid = self.tree.identify_row(event.y)
@@ -915,11 +1154,26 @@ class MainWindow:
     def save_now(self) -> None:
         self.config.excluded_appids = set(self.excluded)
         self.config.last_preset = preset_key(self.range_state)
-        self.config.ui.pool_panel_expanded = self.pool_panel_expanded
         self.config.ui.sort_key = self.sort_key
         self.config.ui.sort_desc = self.sort_desc
         self.config.ui.window_geometry = self._current_geometry()
+        # 用户手动拖过窗口就记为「自定义」，否则保持他选定的预设
+        self.config.ui.window_size = self.current_window_size()
         self._save_config()
+
+    def current_window_size(self) -> str:
+        """当前窗口对应哪个尺寸选项（拖过就是 ``custom``）。"""
+        try:
+            screen_width = int(self.root.winfo_screenwidth())
+            screen_height = int(self.root.winfo_screenheight())
+        except tk.TclError:  # pragma: no cover
+            return self.config.ui.window_size
+        return config_module.resolve_window_size(
+            self.config.ui.window_size,
+            self._current_geometry(),
+            screen_width,
+            screen_height,
+        )
 
     def _current_geometry(self) -> str:
         try:
@@ -939,8 +1193,6 @@ class MainWindow:
             self.on_settings()
         elif action == ACTION_RETRY:
             self.start_load()
-        elif action == ACTION_EXPAND:
-            self.toggle_pool_panel(expand=True)
         elif action == ACTION_CANCEL:
             self.cancel_load()
 
@@ -954,8 +1206,15 @@ class MainWindow:
             config=self.config,
             store=self.store,
             on_saved=self.on_settings_saved,
+            on_reset_geometry=self.on_reset_window_size,
             logger=self.logger,
         )
+
+    def on_reset_window_size(self, size: str) -> str:
+        """设置里的「恢复所选窗口大小」：按选择框里的尺寸调整并写回配置（PRD D14）。"""
+        geometry = self.apply_default_geometry(size)
+        self.set_status(status("saved"))
+        return geometry
 
     def start_first_run_guide(self) -> SettingsDialog:
         """首次运行引导 W3（PRD 2.1）。"""
@@ -964,6 +1223,7 @@ class MainWindow:
             config=self.config,
             store=self.store,
             on_saved=self.on_settings_saved,
+            on_reset_geometry=self.on_reset_window_size,
             first_run=True,
             logger=self.logger,
         )
@@ -1002,7 +1262,7 @@ class MainWindow:
             self._bounce_job = None
 
         query = self.search_var.get()
-        expanded = self.pool_panel_expanded
+        body_visible = self.pool_body_visible
         details = self._last_details
         photo = self.cover_photo
 
@@ -1011,8 +1271,9 @@ class MainWindow:
 
         self._build()
         self._language_at_build = get_language()
-        self.pool_panel_expanded = expanded
+        self.pool_body_visible = body_visible
         self._apply_pool_panel_visibility()
+        self.refresh_history()  # 记录区标题要跟着语言走
         self.search_var.set(query)
         self.apply_search()
         if self.winner is not None:
@@ -1134,6 +1395,8 @@ class MainWindow:
             self.refresh_state()  # 进入 S4 并提示调整范围
             return
         self.winner = pick(pool)
+        self.history.record(self.winner.appid, self.winner.name)
+        self.refresh_history()
         self._show_detail_retry(False)
         self.set_state(AppState.DRAWING)
         self._animator.start(
@@ -1191,9 +1454,8 @@ class MainWindow:
         self._detail_appid = appid
         self.refresh_state(detail_loading=True)
         self._show_detail_retry(False)  # 请求期间隐藏重试，避免连点
-        self.detail_description.configure(
-            text=status("detail_loading").text, foreground=theme.COLOR_MUTED
-        )
+        self.detail_description.configure(foreground=theme.COLOR_MUTED)
+        self.set_detail_description(status("detail_loading").text)
         self._detail_task = self.worker.submit(
             self._detail_job,
             on_done=self.on_details_loaded,
@@ -1229,9 +1491,8 @@ class MainWindow:
         self._last_details = details
         fallback_name = self.winner.name if self.winner else ""
         self.detail_name.configure(text=details.name or fallback_name)
-        self.detail_description.configure(
-            text=details.short_description or PLACEHOLDER, foreground=theme.COLOR_MUTED
-        )
+        self.detail_description.configure(foreground=theme.COLOR_MUTED)
+        self.set_detail_description(details.short_description or PLACEHOLDER)
         self.detail_meta.configure(text=details_meta_line(details))
         self.detail_extra.configure(text=details_price_line(details))
         self._set_cover(photo)
@@ -1240,9 +1501,8 @@ class MainWindow:
     def on_details_error(self, exc: BaseException) -> None:
         self.logger.warning("详情获取失败：%s", exc)
         self.detail_name.configure(text=self.winner.name if self.winner else "")
-        self.detail_description.configure(
-            text=message(Err.DETAIL_FAILED).text, foreground=theme.COLOR_MUTED
-        )
+        self.detail_description.configure(foreground=theme.COLOR_MUTED)
+        self.set_detail_description(message(Err.DETAIL_FAILED).text)
         self.detail_meta.configure(text="")
         self.detail_extra.configure(text="")
         self._set_cover(None)

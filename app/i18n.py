@@ -12,15 +12,86 @@
 
 from __future__ import annotations
 
+import ctypes
+import locale
+import sys
+
 LANG_ZH = "zh"
 LANG_EN = "en"
 DEFAULT_LANGUAGE = LANG_ZH
 VALID_LANGUAGES: tuple[str, ...] = (LANG_ZH, LANG_EN)
 
+#: 中文的各种写法（Windows 返回的 UILanguage 可能是 zh-CN / zh-TW / zh-Hans 等）
+_CHINESE_PREFIXES = ("zh", "chinese")
+#: Windows 的 UILanguage 名称 → 语言前缀（如 "Chinese (Simplified)" → "zh"）
+_WINDOWS_LANGUAGE_NAMES = {
+    "chinese": "zh",
+    "english": "en",
+}
+
 #: 语言选择器里显示的名称（自名，不随当前语言变化）
 LANGUAGE_NAMES: dict[str, str] = {LANG_ZH: "中文", LANG_EN: "English"}
 
 _current = DEFAULT_LANGUAGE
+
+
+def language_from_tag(tag: str | None) -> str | None:
+    """把语言标记（``zh-CN`` / ``Chinese (Simplified)`` / ``en-US``）映射成支持的语言。
+
+    认不出来返回 ``None``（调用方决定回落策略）。判定只看语言本身，
+    不看地区——中文不管简体繁体都算中文，其余一律英文。
+    """
+    if not isinstance(tag, str):
+        return None
+    text = tag.strip().lower()
+    if not text:
+        return None
+    for prefix in _CHINESE_PREFIXES:
+        if text.startswith(prefix):
+            return LANG_ZH
+    for name, language in _WINDOWS_LANGUAGE_NAMES.items():
+        if text.startswith(name):
+            return language
+    # ``en-US`` / ``en_GB`` 这类：取主语言子标签再判一次
+    primary = text.replace("_", "-").split("-")[0]
+    if primary in VALID_LANGUAGES:
+        return primary
+    if primary in _WINDOWS_LANGUAGE_NAMES:
+        return _WINDOWS_LANGUAGE_NAMES[primary]
+    return None
+
+
+def _windows_ui_language() -> str | None:
+    """Windows 的系统界面语言（``GetUserDefaultUILanguage`` 的语言标记）。"""
+    if sys.platform != "win32":  # pragma: no cover - 非 Windows
+        return None
+    try:
+        import ctypes.wintypes as wt
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        lcid = kernel32.GetUserDefaultUILanguage()
+        buffer = ctypes.create_unicode_buffer(85)  # LOCALE_NAME_MAX_LENGTH
+        if kernel32.LCIDToLocaleName(wt.LCID(lcid), buffer, len(buffer), 0):
+            return buffer.value
+    except Exception:  # pragma: no cover - 老系统或调用失败
+        return None
+    return None
+
+
+def system_language() -> str:
+    """主机语言 → 应用语言（中文系统给中文，其余给英文，见 PRD D14）。
+
+    三级兜底：Windows API → Python 的 ``locale`` → 默认中文。
+    只用于"用户还没做过选择"的首次启动。
+    """
+    detected = language_from_tag(_windows_ui_language())
+    if detected is not None:
+        return detected
+    try:
+        detected = language_from_tag(locale.getdefaultlocale()[0])
+    except Exception:  # pragma: no cover - 环境异常
+        detected = None
+    return detected if detected is not None else DEFAULT_LANGUAGE
 
 
 def get_language() -> str:
@@ -77,7 +148,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "action.retry": "重试",
         "action.settings": "去设置",
         "action.cancel": "取消",
-        "action.expand": "展开范围设置",
         # ---- 范围名称 ----
         "preset.all": "全部参与",
         "preset.never_played": "从未玩过",
@@ -91,7 +161,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "ui.cancel": "取消",
         "ui.refresh": "刷新",
         "ui.range_label": "范围",
-        "ui.pool_header": "{arrow} 展开范围设置（当前：{preset} · {available}/{total}）",
+        "ui.range_summary": "当前：{preset} · {available}/{total} 款参与抽签",
+        "ui.history_open": "抽签记录",
         "ui.bulk_all": "全选（当前 {count} 条）",
         "ui.bulk_none": "全不选（当前 {count} 条）",
         "ui.bulk_invert": "反选（当前 {count} 条）",
@@ -122,6 +193,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings.threshold_label": "「玩得很少」阈值（分钟）",
         "settings.ttl_label": "详情缓存有效期（天）",
         "settings.language_label": "界面语言",
+        "settings.window_size_label": "窗口大小",
+        "settings.window_size_option": "{width} × {height}",
+        "settings.window_size_custom": "自定义",
+        "settings.reset_window": "恢复所选窗口大小",
+        "settings.window_size_hint": "当前：{size}",
+        "settings.window_reset_done": "已按所选尺寸调整窗口",
+        "settings.window_reset_needs_preset": "请先选择一个窗口大小，再点恢复",
+        # ---- 抽签记录窗口 ----
+        "history.title": "抽签记录",
+        "history.summary": "最近 {count} 次抽签（双击可查看游戏详情）",
+        "history.empty": "还没有抽签记录",
+        "history.clear": "清空记录",
+        "history.close": "关闭",
+        "history.column_time": "时间",
         "settings.log_dir": "日志目录：{path}",
         "settings.open_log_dir": "打开日志目录",
         "settings.save": "保存",
@@ -169,7 +254,6 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "action.retry": "Retry",
         "action.settings": "Open settings",
         "action.cancel": "Cancel",
-        "action.expand": "Expand range",
         # ---- range presets ----
         "preset.all": "All games",
         "preset.never_played": "Never played",
@@ -183,7 +267,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "ui.cancel": "Cancel",
         "ui.refresh": "Refresh",
         "ui.range_label": "Range",
-        "ui.pool_header": "{arrow} Range settings (current: {preset} · {available}/{total})",
+        "ui.range_summary": "Current: {preset} · {available}/{total} in the pool",
+        "ui.history_open": "Pick history",
         "ui.bulk_all": "Select all ({count})",
         "ui.bulk_none": "Select none ({count})",
         "ui.bulk_invert": "Invert ({count})",
@@ -214,6 +299,20 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "settings.threshold_label": "“Barely played” threshold (minutes)",
         "settings.ttl_label": "Details cache TTL (days)",
         "settings.language_label": "Language",
+        "settings.window_size_label": "Window size",
+        "settings.window_size_option": "{width} × {height}",
+        "settings.window_size_custom": "Custom",
+        "settings.reset_window": "Apply selected size",
+        "settings.window_size_hint": "Current: {size}",
+        "settings.window_reset_done": "Window resized to the selected size",
+        "settings.window_reset_needs_preset": "Pick a window size first, then apply it",
+        # ---- pick history dialog ----
+        "history.title": "Pick history",
+        "history.summary": "Last {count} picks (double-click for game details)",
+        "history.empty": "No picks yet",
+        "history.clear": "Clear history",
+        "history.close": "Close",
+        "history.column_time": "Time",
         "settings.log_dir": "Log folder: {path}",
         "settings.open_log_dir": "Open log folder",
         "settings.save": "Save",

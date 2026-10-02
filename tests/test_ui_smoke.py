@@ -24,8 +24,8 @@ def test_theme_values_match_prd(root: tk.Tk) -> None:
     assert theme.COLOR_OK == "#a4d007"
     assert theme.COLOR_ROLLING == "#c6d4df"
     assert theme.COLOR_BG == "#1b2838"
-    assert (theme.WINDOW_DEFAULT_WIDTH, theme.WINDOW_DEFAULT_HEIGHT) == (800, 600)
-    assert (theme.WINDOW_MIN_WIDTH, theme.WINDOW_MIN_HEIGHT) == (640, 480)
+    assert (theme.WINDOW_DEFAULT_WIDTH, theme.WINDOW_DEFAULT_HEIGHT) == (680, 880)
+    assert (theme.WINDOW_MIN_WIDTH, theme.WINDOW_MIN_HEIGHT) == (680, 620)
 
 
 @pytest.mark.parametrize(

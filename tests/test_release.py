@@ -124,6 +124,57 @@ def test_desktop_task_is_checked_on_upgrade_too():
 # ---------------------------------------------------------------------------
 # 文档
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# 安装时的语言选择必须与应用的注册表约定对齐（PRD D14）
+# ---------------------------------------------------------------------------
+def test_installer_and_app_agree_on_the_language_marker():
+    text = INSTALLER.read_text(encoding="utf-8")
+    assert "Software\\SteamGamePicker" in text, "安装脚本没写语言标记"
+    assert 'ValueName: "Language"' in text
+    assert "{code:AppLanguageCode}" in text, "注册表值必须来自所选语言"
+    assert "ActiveLanguage" in text, "语言映射函数没用上安装时选中的语言"
+
+
+def test_installer_can_ship_both_languages():
+    """两种语言都要可用，且**中文优先**（列为第一项 = 向导默认语言）。
+
+    中文语言包是可选输入：在则启用中文选项，不在也能编译（只用英文）。
+    因此这里断言"引用完整 + 中文排在英文前 + 有获取说明"。
+    """
+    text = INSTALLER.read_text(encoding="utf-8")
+    assert 'Name: "chinese"; MessagesFile: "ChineseSimplified.isl"' in text
+    assert 'Name: "english"; MessagesFile: "compiler:Default.isl"' in text
+    assert text.index('Name: "chinese"') < text.index('Name: "english"'), (
+        "[Languages] 的第一项是向导默认语言，中文必须排在英文之前"
+    )
+    guide = ROOT / "packaging" / "README-installer-language.md"
+    assert guide.exists(), "缺少如何获取中文语言包的说明"
+    assert "ChineseSimplified.isl" in guide.read_text(encoding="utf-8")
+
+
+def test_bundled_chinese_language_file_is_usable():
+    """随仓库分发的语言包必须是 UTF-8 且含 Inno 必需的关键键。"""
+    isl = ROOT / "packaging" / "ChineseSimplified.isl"
+    assert isl.exists(), "仓库应随包提供中文语言包（installer.iss 会引用它）"
+
+    raw = isl.read_bytes()
+    assert not raw.startswith(b"\xef\xbb\xbf"), "带 BOM 会让 Inno 的 .isl 解析出问题"
+    text = raw.decode("utf-8")  # 解不出 UTF-8 就会在这里失败
+    for key in ("[LangOptions]", "LanguageName", "LanguageID", "LanguageCodePage"):
+        assert key in text, f"语言包缺少 {key}"
+    assert "简体中文" in text
+    # 语言必须声明为 6.5.0+ 的格式（本仓库用 Inno Setup 6.7.3 编译）
+    assert "6.5.0" in text.splitlines()[0]
+    for button in ("ButtonNext", "ButtonBack", "ButtonInstall", "ButtonCancel"):
+        assert button in text, f"语言包缺少 {button}，向导按钮会退回英文"
+
+
+def test_installer_language_codes_match_the_app():
+    text = INSTALLER.read_text(encoding="utf-8")
+    for code, language in (("LanguageZh", "zh"), ("LanguageEn", "en")):
+        assert f'#define {code} "{language}"' in text
+
+
 def test_changelog_documents_the_current_version():
     text = CHANGELOG.read_text(encoding="utf-8")
     assert f"## [{APP_VERSION}]" in text, f"CHANGELOG 缺少 [{APP_VERSION}] 小节"

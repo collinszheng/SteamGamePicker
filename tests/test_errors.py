@@ -9,7 +9,6 @@ import pytest
 
 from app import errors
 from app.errors import (
-    ACTION_EXPAND,
     ACTION_RETRY,
     ACTION_SETTINGS,
     LEVEL_ERROR,
@@ -83,7 +82,8 @@ def test_status_templates_render() -> None:
     )
     assert status("offline", updated="09-19 15:04").level == LEVEL_WARN
     pool_empty = status("pool_empty")
-    assert pool_empty.actions == (ACTION_EXPAND,)
+    # 范围设置已常驻显示，空池状态不再挂附加按钮（PRD D14）
+    assert pool_empty.actions == ()
     assert "没有可抽签的游戏" in pool_empty.text
     assert status("preset_applied", preset="从未玩过").text == "已按『从未玩过』重设选择，可继续手动调整"
     assert status("config_corrupt").level == LEVEL_WARN

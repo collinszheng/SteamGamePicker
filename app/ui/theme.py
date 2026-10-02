@@ -127,23 +127,48 @@ PAD_OUTER = 12
 PAD_INNER = 8
 PAD_TIGHT = 4
 
-WINDOW_DEFAULT_WIDTH = 800
-WINDOW_DEFAULT_HEIGHT = 600
-WINDOW_MIN_WIDTH = 640
-WINDOW_MIN_HEIGHT = 480
-POOL_AUTO_COLLAPSE_HEIGHT = 520
+#: 可选的窗口尺寸预设（宽, 高）。用户可在设置里用下拉条切换；默认取第一个。
+#: 680×880 是最紧凑的一档（默认）；800×1100 更宽裕（简介与列表能多显示几行）；
+#: 1100×800 是横版，适合宽屏并排看。
+WINDOW_SIZE_PRESETS: tuple[tuple[int, int], ...] = ((680, 880), (800, 1100), (1100, 800))
+#: 默认窗口尺寸（取预设第一项，避免两处各写一份）
+WINDOW_DEFAULT_WIDTH, WINDOW_DEFAULT_HEIGHT = WINDOW_SIZE_PRESETS[0]
+#: 最小尺寸：宽度取最窄的预设（再窄会挤坏封面与文字列），高度 620
+#: （结果卡片是固定高度，再矮就会挤压各区块）
+WINDOW_MIN_WIDTH = 680
+WINDOW_MIN_HEIGHT = 620
+POOL_AUTO_COLLAPSE_HEIGHT = 620
+#: 游戏列表的固定行数（窗口变高时由区2 的 expand 吸收，不再靠加大行数）
+POOL_TREE_HEIGHT = 4
+
+#: 结果卡片固定高度（PRD D14）：封面 300×140 + 游戏名 + 简介 + 元信息 + 售价，
+#: 不随游戏不同而伸缩，否则每次抽签窗口内容都会跳一下。
+DETAILS_CARD_HEIGHT = 150
+#: 卡片里简介之外的固定占用（游戏名 + 元信息 + 售价 + 内边距），用于反算简介能放几行。
+#: 实测：32 + 23 + 23 + 2×4（网格间距）+ 2×7（内边距）= 96，故简介最多 2 行。
+DETAILS_TEXT_RESERVE = 96
+#: 抽签记录窗口的列表行数（记录最多 10 条，一次能看全）
+HISTORY_VISIBLE_ROWS = 10
+#: 抽签记录窗口的初始尺寸
+HISTORY_DIALOG_WIDTH = 560
+HISTORY_DIALOG_HEIGHT = 420
+
+#: 默认窗口几何串（``800x1100``）：config 层也用它当默认值，避免两处各写一份
+DEFAULT_GEOMETRY = f"{WINDOW_DEFAULT_WIDTH}x{WINDOW_DEFAULT_HEIGHT}"
 
 DRAW_BUTTON_WIDTH = 18
 DRAW_BUTTON_HEIGHT = 44
 BUTTON_MIN_HEIGHT = 30
 BUTTON_MIN_WIDTH = 84
+#: 对话框底部按钮统一的内边距：主/次按钮样式不同，尺寸必须靠这个拉平
+DIALOG_BUTTON_PAD_X = 24
+DIALOG_BUTTON_PAD_Y = 8
 HEADER_BAR_HEIGHT = 2  # 顶栏下的 Steam 蓝强调线
 
 HEADER_ASPECT = 215 / 460
 HEADER_MAX_WIDTH = 300
 HEADER_MIN_WIDTH = 240
-#: 封面宽度占窗口比例（0.30 让默认 800 宽窗口正好落在最小值 240，
-#: 避免新增的卡片与结果区把游戏列表挤到只剩两三行）
+#: 封面宽度占窗口比例（0.30 让默认宽度窗口正好落在 300 上限，取整后仍是 300）
 HEADER_WIDTH_RATIO = 0.30
 
 CHECK_ON = "☑"
@@ -215,6 +240,7 @@ STYLE_HEADER_BUTTON = "HeaderButton.TButton"
 STYLE_ACCENT_BUTTON = "Accent.TButton"
 STYLE_LINK_BUTTON = "Link.TButton"
 STYLE_ENTRY = "Steam.TEntry"
+STYLE_COMBOBOX = "Steam.TCombobox"
 STYLE_CHECK = "Steam.TCheckbutton"
 STYLE_RADIO = "Steam.TRadiobutton"
 STYLE_CARD_CHECK = "Card.TCheckbutton"
@@ -343,6 +369,46 @@ def apply_theme(root: tk.Misc, *, family: str | None = None) -> ttk.Style:
         foreground=[("disabled", COLOR_MUTED)],
         bordercolor=[("focus", COLOR_ACCENT)],
     )
+
+    # 下拉条（窗口大小选择）：clam 下要把 field/arrow/下拉列表都染深色，
+    # 否则未配置的默认值是浅灰底，在深色界面里非常刺眼。
+    style.configure(
+        STYLE_COMBOBOX,
+        fieldbackground=COLOR_INPUT_BG,
+        background=COLOR_BUTTON,
+        foreground=COLOR_TEXT_STRONG,
+        bordercolor=COLOR_BORDER,
+        lightcolor=COLOR_BORDER,
+        darkcolor=COLOR_BORDER,
+        arrowcolor=COLOR_TEXT,
+        selectbackground=COLOR_ACCENT,
+        selectforeground=COLOR_HEADER,
+        padding=(6, 4),
+    )
+    style.map(
+        STYLE_COMBOBOX,
+        fieldbackground=[("readonly", COLOR_INPUT_BG), ("disabled", COLOR_CARD)],
+        foreground=[("disabled", COLOR_MUTED), ("readonly", COLOR_TEXT_STRONG)],
+        background=[("active", COLOR_BUTTON_HOVER), ("readonly", COLOR_BUTTON)],
+        arrowcolor=[("disabled", COLOR_MUTED), ("active", COLOR_TEXT_STRONG)],
+        bordercolor=[("focus", COLOR_ACCENT)],
+    )
+    # 下拉列表本身由 Tk（不是 ttk）绘制，只能用 option 数据库染色
+    try:
+        root.tk.eval(
+            "option add *TCombobox*Listbox.background {bg}".format(bg=COLOR_CARD)
+        )
+        root.tk.eval(
+            "option add *TCombobox*Listbox.foreground {fg}".format(fg=COLOR_TEXT)
+        )
+        root.tk.eval(
+            "option add *TCombobox*Listbox.selectBackground {bg}".format(bg=COLOR_ACCENT)
+        )
+        root.tk.eval(
+            "option add *TCombobox*Listbox.selectForeground {fg}".format(fg=COLOR_HEADER)
+        )
+    except tk.TclError:  # pragma: no cover - 极简 Tk 环境
+        pass
     for name, background in (
         (STYLE_CHECK, COLOR_BG),
         (STYLE_RADIO, COLOR_BG),

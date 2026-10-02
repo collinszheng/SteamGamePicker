@@ -125,7 +125,7 @@ def test_both_filters_can_be_checked_together(window: MainWindow) -> None:
     assert window.low_var.get() is True
     assert window.excluded == {4, 5}, "两个筛选并存时取并集"
     assert window.current_preset == PRESET_NEVER_LOW
-    assert "从未玩过 + 玩得很少" in str(window.pool_toggle_button.cget("text"))
+    assert "从未玩过 + 玩得很少" in str(window.range_summary.cget("text"))
     assert window.status_text() == "已按『从未玩过 + 玩得很少』重设选择，可继续手动调整"
 
 

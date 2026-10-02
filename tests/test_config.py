@@ -43,7 +43,6 @@ def test_save_load_roundtrip(store: ConfigStore) -> None:
         playtime_threshold_minutes=60,
         details_cache_ttl_days=3,
     )
-    config.ui.pool_panel_expanded = True
     config.ui.sort_key = SORT_PLAYTIME
     config.ui.sort_desc = True
     store.save(config)
@@ -104,7 +103,6 @@ def test_wrong_types_are_coerced(store: ConfigStore) -> None:
         "ui": {
             "sort_key": "bogus",
             "sort_desc": "yes",
-            "pool_panel_expanded": 1,
             "window_geometry": 5,
         },
     }
@@ -121,7 +119,6 @@ def test_wrong_types_are_coerced(store: ConfigStore) -> None:
     assert config.last_preset == PRESET_ALL
     assert config.ui.sort_key == SORT_NAME
     assert config.ui.sort_desc is False
-    assert config.ui.pool_panel_expanded is False
     assert config.ui.window_geometry == DEFAULT_GEOMETRY
 
 

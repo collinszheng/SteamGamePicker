@@ -16,8 +16,18 @@ from tkinter import ttk
 from typing import Any
 
 from app import APP_NAME, APP_VERSION
-from app.config import DEFAULT_THRESHOLD_MINUTES, DEFAULT_TTL_DAYS, Config, ConfigStore
+from app.config import (
+    DEFAULT_THRESHOLD_MINUTES,
+    DEFAULT_TTL_DAYS,
+    WINDOW_SIZE_CHOICES,
+    WINDOW_SIZE_CUSTOM,
+    Config,
+    ConfigStore,
+    parse_geometry,
+    resolve_window_size,
+)
 from app.ui import theme
+from app.ui.dialog_utils import center_window
 from app.i18n import LANGUAGE_NAMES, VALID_LANGUAGES, t
 
 API_KEY_URL = "https://steamcommunity.com/dev/apikey"
@@ -82,6 +92,7 @@ class SettingsDialog:
         config: Config,
         store: ConfigStore,
         on_saved: Callable[[], None] | None = None,
+        on_reset_geometry: Callable[[str], None] | None = None,
         first_run: bool = False,
         logger: Logger | None = None,
     ) -> None:
@@ -89,6 +100,7 @@ class SettingsDialog:
         self.config = config
         self.store = store
         self.on_saved = on_saved
+        self.on_reset_geometry = on_reset_geometry
         self.first_run = first_run
         self.logger = logger
 
@@ -101,8 +113,14 @@ class SettingsDialog:
         self.window.protocol("WM_DELETE_WINDOW", self.cancel)
 
         self._build()
+        self.center_on_screen()  # 不居中会默认弹在屏幕左上角，很难看也很难点
         self.window.bind("<Escape>", lambda _event: self.cancel())
         self.key_entry.focus_set()
+
+    # ------------------------------------------------------------------ 位置
+    def center_on_screen(self) -> tuple[int, int]:
+        """把窗口摆到屏幕正中（见 :mod:`app.ui.dialog_utils`）。"""
+        return center_window(self.window)
 
     # ------------------------------------------------------------------ 构建
     def _build(self) -> None:
@@ -228,25 +246,146 @@ class SettingsDialog:
         self.log_button.grid(row=0, column=1, padx=(theme.PAD_INNER, 0))
         row += 1
 
+        # 窗口大小：下拉条选预设（用户要求：点一下展开全部预设值）+ 「恢复所选窗口大小」
+        # （恢复的目标 = 下拉条里的值）
+        ttk.Label(frame, text=t("settings.window_size_label"), font=theme.FONT_BODY).grid(
+            row=row, column=0, sticky="w", pady=(theme.PAD_INNER, 0)
+        )
+        row += 1
+        self.window_size_var = tk.StringVar(value=self._initial_window_size())
+        #: 下拉条里显示的值（含「自定义」，表示当前窗口尺寸不属于任何预设）
+        self._size_values: tuple[str, ...] = tuple(WINDOW_SIZE_CHOICES) + (WINDOW_SIZE_CUSTOM,)
+        self.window_size_combo = ttk.Combobox(
+            frame,
+            textvariable=self.window_size_var,
+            values=[self._size_label(value) for value in self._size_values],
+            state="readonly",  # 只允许选预设，不允许手打
+            width=18,
+            style=theme.STYLE_COMBOBOX,
+            font=theme.FONT_BODY,
+        )
+        self.window_size_combo.grid(row=row, column=0, sticky="w")
+        # ttk 的 Combobox 用显示文案绑定，这里把它映射回配置值
+        self.window_size_combo.bind("<<ComboboxSelected>>", self._on_size_selected)
+        self.current_size_label = ttk.Label(
+            frame,
+            text=t("settings.window_size_hint", size=self.config.ui.window_geometry),
+            font=theme.FONT_SMALL,
+            foreground=theme.COLOR_MUTED,
+        )
+        self.current_size_label.grid(row=row + 1, column=0, sticky="w", pady=(theme.PAD_TIGHT, 0))
+        row += 2
+
+        self.reset_window_button = ttk.Button(
+            frame,
+            text=t("settings.reset_window"),
+            style=theme.STYLE_BUTTON,
+            command=self.reset_window_size,
+        )
+        self.reset_window_button.grid(row=row, column=0, sticky="w", pady=(theme.PAD_TIGHT, 0))
+        row += 1
+
         self.error_label = ttk.Label(
             frame, text="", font=theme.FONT_SMALL, foreground=theme.COLOR_ERROR, wraplength=380
         )
         self.error_label.grid(row=row, column=0, sticky="w", pady=(theme.PAD_INNER, 0))
         row += 1
 
+        # 两个按钮必须一样大：样式不同（主按钮 padding 更大）会让它们一大一小。
+        # 这里统一内边距，并让两列等宽（uniform），两者尺寸必然一致。
         button_row = ttk.Frame(frame)
-        button_row.grid(row=row, column=0, sticky="e", pady=(theme.PAD_INNER, 0))
-        self.save_button = ttk.Button(
-            button_row, text=t("settings.save"), style=theme.STYLE_ACCENT_BUTTON, command=self.save
+        button_row.grid(row=row, column=0, sticky="ew", pady=(theme.PAD_INNER, 0))
+        button_row.columnconfigure(0, weight=1, uniform="dialog_button")
+        button_row.columnconfigure(1, weight=1, uniform="dialog_button")
+        save_button = ttk.Button(
+            button_row,
+            text=t("settings.save"),
+            style=theme.STYLE_ACCENT_BUTTON,
+            command=self.save,
+            padding=(theme.DIALOG_BUTTON_PAD_X, theme.DIALOG_BUTTON_PAD_Y),
         )
-        self.save_button.grid(row=0, column=0, padx=(0, theme.PAD_TIGHT))
-        self.cancel_button = ttk.Button(
-            button_row, text=t("settings.cancel"), style=theme.STYLE_BUTTON, command=self.cancel
+        save_button.grid(row=0, column=0, sticky="ew", padx=(0, theme.PAD_TIGHT))
+        cancel_button = ttk.Button(
+            button_row,
+            text=t("settings.cancel"),
+            style=theme.STYLE_BUTTON,
+            command=self.cancel,
+            padding=(theme.DIALOG_BUTTON_PAD_X, theme.DIALOG_BUTTON_PAD_Y),
         )
-        self.cancel_button.grid(row=0, column=1)
+        cancel_button.grid(row=0, column=1, sticky="ew")
+        self.save_button = save_button
+        self.cancel_button = cancel_button
+        # 构建完成后再回填下拉条的选中项（那时 `_size_values` 已就绪）
+        self.select_window_size(self._initial_window_size())
+
+    def _initial_window_size(self) -> str:
+        """按当前窗口几何推断该选中哪个尺寸选项（含屏幕装不下的情况）。"""
+        parent = self.parent
+        try:
+            screen_width = int(parent.winfo_screenwidth())
+            screen_height = int(parent.winfo_screenheight())
+        except (AttributeError, tk.TclError):  # pragma: no cover - 无显示环境
+            screen_width, screen_height = 0, 0
+        return resolve_window_size(
+            self.config.ui.window_size,
+            self.config.ui.window_geometry,
+            screen_width,
+            screen_height,
+        )
+
+    @staticmethod
+    def _size_label(choice: str) -> str:
+        """把 ``680x880`` 显示成人读的尺寸标签（下拉条里的文案）。"""
+        parsed = parse_geometry(choice)
+        if parsed is None:
+            # 「自定义」没有具体尺寸，直接用文案
+            return t("settings.window_size_custom")
+        return t("settings.window_size_option", width=parsed[0], height=parsed[1])
+
+    def selected_window_size(self) -> str:
+        """下拉条当前选中的**配置值**（``680x880`` / ``800x1100`` / ``1100x800`` / ``custom``）。
+
+        下拉条里显示的是人读文案（``680 × 880``），这里用显示文案反查配置值；
+        认不出来时按「自定义」处理（例如手动拖过窗口后的状态）。
+        """
+        display = self.window_size_var.get()
+        labels = [self._size_label(value) for value in self._size_values]
+        if display in labels:
+            return self._size_values[labels.index(display)]
+        return WINDOW_SIZE_CUSTOM
+
+    def select_window_size(self, size: str) -> None:
+        """按配置值选中下拉条里的选项（同时刷新「自定义」提示行的措辞）。"""
+        if size in self._size_values:
+            self.window_size_var.set(self._size_label(size))
+        else:
+            self.window_size_var.set(self._size_label(WINDOW_SIZE_CUSTOM))
+        self.current_size_label.configure(
+            text=t("settings.window_size_hint", size=size)
+            if size != WINDOW_SIZE_CUSTOM
+            else t("settings.window_size_detected", size=self.config.ui.window_geometry)
+        )
+
+    def _on_size_selected(self, _event: tk.Event | None = None) -> None:
+        self.select_window_size(self.selected_window_size())
 
     def _toggle_show(self) -> None:
         self.key_entry.configure(show="" if self.show_var.get() else "*")
+
+    def reset_window_size(self) -> None:
+        """把主窗口恢复到**选择框里选中的**尺寸（PRD D14）。
+
+        用户明确要求：恢复默认的值 = 尺寸选择框内的值，而不是写死某个尺寸。
+        选了「自定义」时没有可恢复的目标，给出提示而不是默默套用别的尺寸。
+        """
+        target = self.selected_window_size()
+        if target == WINDOW_SIZE_CUSTOM:
+            self.error_label.configure(text=t("settings.window_reset_needs_preset"))
+            return
+        if self.on_reset_geometry is not None:
+            self.on_reset_geometry(target)
+            self.current_size_label.configure(text=t("settings.window_size_hint", size=target))
+            self.error_label.configure(text=t("settings.window_reset_done"))
 
     # ------------------------------------------------------------------ 行为
     def error_text(self) -> str:
@@ -278,6 +417,11 @@ class SettingsDialog:
         self.config.playtime_threshold_minutes = threshold or DEFAULT_THRESHOLD_MINUTES
         self.config.details_cache_ttl_days = ttl or DEFAULT_TTL_DAYS
         self.config.language = self.language_var.get()
+        # 选了预设就即时套用（用户要求：选择框的值既是显示值，也是「恢复默认」的目标）
+        chosen_size = self.selected_window_size()
+        self.config.ui.window_size = chosen_size
+        if chosen_size != WINDOW_SIZE_CUSTOM and self.on_reset_geometry is not None:
+            self.on_reset_geometry(chosen_size)
         try:
             self.store.save(self.config)
         except OSError:

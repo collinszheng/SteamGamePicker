@@ -14,6 +14,8 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 README_ZH = ROOT / "README.md"
 README_EN = ROOT / "README.en.md"
+#: 开发文档的统一目录（PRD / DEV_PLAN / ACCEPTANCE 都在这里）
+DOCS_DIR = ROOT / "docs"
 
 #: [文本](目标) —— 目标里不含空格与右括号（本项目的链接都符合）
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
@@ -25,9 +27,25 @@ def read(path: Path) -> str:
 
 
 def markdown_files() -> list[Path]:
+    """README / CHANGELOG 与 docs 下的**全部** Markdown（递归）。
+
+    递归而不是只扫一层：文档目录以后可能再分子目录，漏扫等于漏查死链。
+    """
     files = [README_ZH, README_EN, ROOT / "CHANGELOG.md"]
-    files.extend(sorted((ROOT / "docs").glob("*.md")))
+    files.extend(sorted(DOCS_DIR.rglob("*.md")))
     return [path for path in files if path.exists()]
+
+
+def test_development_docs_live_in_one_folder() -> None:
+    """开发文档只有 docs/ 一处（PRD / DEV_PLAN / ACCEPTANCE）且都在仓库内。"""
+    for name in ("PRD.md", "DEV_PLAN.md", "ACCEPTANCE.md"):
+        assert (DOCS_DIR / name).exists(), f"docs/{name} 不见了"
+        assert not (ROOT / name).exists(), f"{name} 不该再放仓库根目录"
+
+    # 历史遗留：开发文档曾被复制到仓库外（工作区根目录），两份副本迟早会各改一半
+    for name in ("PRD.md", "DEV_PLAN.md"):
+        outside = ROOT.parent / name
+        assert not outside.exists(), f"仓库外还留着重复副本 {outside}"
 
 
 def test_both_readmes_exist() -> None:
