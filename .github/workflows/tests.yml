@@ -34,7 +34,35 @@ jobs:
           pip install -r requirements-dev.txt
 
       - name: 运行全部测试
-        run: python -m pytest -q
+        shell: pwsh
+        run: |
+          # 把完整输出同时写到控制台与文件：失败时便于本地/远端排查
+          # （-q 会把回溯压成一行，这里失败时改用 --tb=short 的完整视图兜底）
+          python -m pytest -q 2>&1 | Tee-Object -FilePath pytest-output.txt
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            "=== 失败摘要（供远端诊断）==="
+            Select-String -Path pytest-output.txt -Pattern '^FAILED|^ERROR|assert|Error' |
+              Select-Object -Last 60 | ForEach-Object { $_.Line }
+          }
+          exit $code
+
+      - name: 运行全部测试（失败时重跑以获取完整回溯）
+        if: failure()
+        shell: pwsh
+        run: |
+          python -m pytest -q --tb=long -x 2>&1 | Tee-Object -FilePath pytest-full.txt
+          exit 0
+
+      - name: 保存测试输出
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-output
+          path: |
+            pytest-output.txt
+            pytest-full.txt
+          if-no-files-found: ignore
 
       - name: 自检（仅在运行器有可用 Tk 桌面会话时执行）
         shell: pwsh
