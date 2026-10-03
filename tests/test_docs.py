@@ -96,3 +96,24 @@ def test_feature_parity_between_languages() -> None:
     for key in keys:
         assert key in read(README_ZH), f"中文 README 缺少 {key}"
         assert key in read(README_EN), f"英文 README 缺少 {key}"
+
+
+def _count(pattern: str, text: str, label: str) -> int:
+    match = re.search(pattern, text)
+    assert match, f"{label} 里找不到测试数量"
+    return int(match.group(1))
+
+
+def test_test_counts_agree_across_documents() -> None:
+    """README 中英两版与验收记录里的测试数量必须一致。
+
+    这类数字最容易"只改一边"：加了用例却忘了同步 README，或者两版语言不同步。
+    这里只做**互相一致**的校验（不在此处运行 pytest 去数真实用例，避免测试套件自嵌套）。
+    """
+    zh = _count(r"pytest\s*#\s*(\d+)\s*项", read(README_ZH), "中文 README")
+    en = _count(r"pytest\s*#\s*(\d+)\s*tests", read(README_EN), "英文 README")
+    acceptance = read(DOCS_DIR / "ACCEPTANCE.md")
+    doc = _count(r"\*\*(\d+)\s*项通过\*\*", acceptance, "验收记录")
+
+    assert zh == en, f"中英 README 的测试数量不一致：{zh} vs {en}"
+    assert zh == doc, f"README 与验收记录的测试数量不一致：{zh} vs {doc}"

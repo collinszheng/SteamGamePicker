@@ -1,47 +1,59 @@
-# <img src="docs/evidence/icon-256.png" width="44" alt="应用图标"> Steam Game Picker
+# <img src="docs/evidence/icon-256.png" width="40" alt="应用图标"> Steam Game Picker
 
 [English](README.en.md) | **简体中文**
 
 [![tests](https://github.com/collinszheng/SteamGamePicker/actions/workflows/tests.yml/badge.svg)](https://github.com/collinszheng/SteamGamePicker/actions/workflows/tests.yml)
 [![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> 输入 Steam ID 或资料 URL，读取你的游戏库，点一下按钮，随机抽出今晚要玩的那款。
+**库里有几百款游戏，却不知道今晚玩什么？** 输入 Steam ID 或资料地址，点一下按钮，随机抽出今晚的那一款。
 
-面向 Windows 10/11 的桌面小工具，解决"库里有几百款游戏，却不知道玩什么"的选择困难。
-纯 Tkinter 界面，不登录你的 Steam 账号，只通过 Steam 公开 Web API 读取公开数据。
-界面支持**中文 / 英文**切换（默认中文）。
+纯 Tkinter 桌面小工具，**不登录 Steam 账号**、不涉及购买与启动，只通过 Steam 公开 Web API 读取公开数据；
+界面中英双语，支持按游玩时长筛选、抽签记录、缓存离线可用。
 
-## 下载安装
+## 下载
 
 **➡️ [下载最新安装包](https://github.com/collinszheng/SteamGamePicker/releases/latest)**（`SteamGamePicker_Setup.exe`，约 21 MB）
 
-双击安装即可，**不需要管理员权限**；安装向导支持**简体中文**（默认）与 English；
-可选创建桌面快捷方式，卸载时会询问是否保留配置与缓存。
+双击安装，**不需要管理员权限**；安装向导提供**简体中文（默认）与 English**，装完应用就用该语言。
 首次启动会引导填写 Steam Web API Key（[申请地址](https://steamcommunity.com/dev/apikey)，免费）。
+安装包未做代码签名，首次运行若弹出 SmartScreen 提示，点「更多信息」→「仍要运行」即可。
 
 想从源码运行见下方[快速开始](#快速开始源码运行)。
 
-## 功能特性
+## 功能
 
-| 功能 | 说明 |
-| :--- | :--- |
-| 身份解析 | 支持 17 位 SteamID64、`/profiles/` URL、`/id/` 自定义名、裸自定义名四种写法 |
-| 游戏库加载 | 后台线程拉取，界面不卡顿；显示总数与参与抽签数 |
-| 本地缓存 | 库快照 + 详情缓存（默认 7 天）；**启动秒开、断网也能抽签** |
-| 范围筛选 | 「全部参与」/「从未玩过」/「玩得很少」（后两者**可同时勾选**，取并集）；也可在列表中逐条勾选排除 |
-| 抽签动画 | 1.8 秒滚动减速，定格变绿加粗；结果从当前勾选集合中均匀随机产生 |
-| 结果展示 | 封面、简介、类型、发行日期、Metacritic 评分、售价（只显示未打折原价）；**结果区高度固定**，抽签时界面不跳动 |
-| 抽签记录 | 保留最近 **10 次**抽签结果（时间 + 游戏名），点「抽签记录」在独立窗口里查看，双击某条可直接查看该游戏详情，可一键清空 |
-| 错误提示 | 全中文/英文提示，区分"资料非公开""Key 无效""库为空""请求过频"等场景 |
-| 界面语言 | **中文 / 英文**可切换（设置里改，默认跟随**主机语言**，切换后立即生效，无需重启）；**安装时也能选**，装完即用该语言 |
-| 窗口尺寸 | 默认 **680 × 880**，设置里用下拉条切换 800 × 1100 / 1100 × 800；尺寸与位置会被记住，首次运行与对话框都居中显示 |
-| 证书信任回退 | certifi 校验失败时自动切换到操作系统信任库重试，**不关闭证书校验** |
+- **身份解析** —— 17 位 SteamID64、`/profiles/` URL、`/id/` 自定义名、裸自定义名四种写法都能认
+- **游戏库加载** —— 后台线程拉取，界面不卡顿；显示总数与参与抽签数
+- **范围筛选** —— 「全部参与」/「从未玩过」/「玩得很少」，后两者**可同时勾选**（取并集）；
+  也能在列表里逐条勾选排除，被排除的行灰显
+- **抽签动画** —— 1.8 秒滚动减速，定格变绿加粗；结果从当前勾选集合中**均匀随机**产生
+- **结果展示** —— 封面、简介、类型、发行日期、Metacritic 评分、售价（只显示未打折原价）；
+  结果区**高度固定**，抽签时窗口不跳动
+- **抽签记录** —— 保留最近 **10 次**，点「抽签记录」在独立窗口查看，双击某条直达该游戏详情，可一键清空
+- **本地缓存** —— 库快照 + 详情缓存（默认 7 天）：**启动秒开、断网也能抽签**
+- **界面语言** —— 中文 / English 可切换，**默认跟随主机语言**，设置里改完立即生效、无需重启
+- **窗口尺寸** —— 默认 **680 × 880**，下拉条可切 800 × 1100 / 1100 × 800；
+  尺寸与位置记得住，首次运行与对话框都居中显示
+- **错误提示** —— 全中文/英文提示，区分「资料非公开」「Key 无效」「库为空」「请求过频」等场景
+- **证书信任回退** —— certifi 校验失败时自动改用操作系统信任库重试一次，**不关闭证书校验**
+- **轻** —— 单文件 exe 约 **20 MB**，安装包约 **21 MB**；575 项测试全部脱机运行
+
+## 技术栈
+
+| | |
+|---|---|
+| 语言 / 界面 | Python 3.12 · Tkinter/ttk（`clam` 主题自绘 Steam 深色风格） |
+| 网络 / 图片 | requests · Pillow · 可选 truststore（证书信任回退） |
+| 架构 | 纯逻辑层（`steamid`/`pool`/`config`/`cache`）不依赖 tkinter；后台线程 + 队列 + 取消令牌 |
+| 数据 | `%APPDATA%\SteamGamePicker\`：`config.json`（原子写）· `history.json` · 库快照与详情缓存 |
+| 打包 | PyInstaller（单文件、窗口化、带版本资源）· Inno Setup 6（非管理员安装） |
+| 测试 | pytest，575 项，全部脱机（含 Steam 响应样本、界面几何与对比度校验） |
 
 ## 环境要求
 
 - Windows 10 / 11（64 位）
 - Python 3.10+（仅源码运行需要）
-- 一个 Steam Web API Key：[申请地址](https://steamcommunity.com/dev/apikey)（免费，首次启动会有引导）
+- 一个 Steam Web API Key：[申请地址](https://steamcommunity.com/dev/apikey)（免费，首次启动有引导）
 
 ## 快速开始（源码运行）
 
@@ -70,33 +82,28 @@ python main.py
 python -m pytest        # 575 项
 ```
 
-测试覆盖纯逻辑（ID 解析、预设计算、缓存 TTL）、网络层契约（脱机样本模拟 Steam 的
-各类响应与错误码）、界面交互、性能预算、异常矩阵与证书回退路径，全部脱机运行。
+覆盖纯逻辑（ID 解析、预设计算、缓存 TTL）、网络层契约（脱机样本模拟 Steam 各类响应与错误码）、
+界面交互与几何、性能预算、异常矩阵与证书回退路径；全部脱机运行，不依赖网络与真实账号。
 
-## 打包安装包
+## 打包与自检
 
 ```powershell
-python -m PyInstaller packaging\SteamGamePicker.spec --noconfirm   # 生成 dist\SteamGamePicker.exe
-ISCC.exe packaging\installer.iss                                   # 生成 dist\SteamGamePicker_Setup.exe（需 Inno Setup 6）
+python -m PyInstaller packaging\SteamGamePicker.spec --noconfirm   # → dist\SteamGamePicker.exe
+ISCC.exe packaging\installer.iss                                   # → dist\SteamGamePicker_Setup.exe（需 Inno Setup 6）
+.\dist\SteamGamePicker.exe --selftest --live --report .\dist\selftest.json
 ```
 
-安装包特性：非管理员权限即可安装、桌面快捷方式可选、开始菜单项、安装完成后可选立即运行、
-支持静默安装（`/VERYSILENT`）、卸载时询问是否保留配置（默认保留）。
+安装包特性：非管理员权限即可安装、安装向导中英双语、桌面快捷方式可选、开始菜单项、
+安装完成后可选立即运行、支持静默安装（`/VERYSILENT`）、卸载时询问是否保留配置（默认保留）。
 
-应用图标由脚本生成（改配色或换图案后重新生成即可，无需手工绘图）：
+应用图标由脚本生成，改配色或换图案后重跑即可（无需手工绘图）：
 
 ```powershell
 python tools\make_icon.py      # 重写 assets\app.ico，并刷新 docs\evidence\icon-preview.png
 ```
 
-打包产物自检：
-
-```powershell
-.\dist\SteamGamePicker.exe --selftest --live --report .\dist\selftest.json
-```
-
-> `dist/` 与 `build/` 已在 `.gitignore` 中排除，打包产物不入库；
-> 面向用户的安装包统一放在 [Releases](https://github.com/collinszheng/SteamGamePicker/releases) 页。
+> 安装包统一发布在 [Releases](https://github.com/collinszheng/SteamGamePicker/releases) 页；
+> `dist/` 与 `build/` 已在 `.gitignore` 中排除，构建产物不入库。
 
 ## 项目结构
 
@@ -117,7 +124,7 @@ SteamGamePicker/
 │  ├─ state.py              状态机与控件启停映射
 │  └─ ui/                   主窗口、动画、设置/记录窗口、主题、标题栏
 ├─ tests/                   575 项 pytest（含 Steam 响应样本 fixtures）
-├─ packaging/               PyInstaller spec 与 Inno Setup 脚本
+├─ packaging/               PyInstaller spec 与 Inno Setup 脚本（含中文语言包）
 ├─ tools/                   实测与图标生成脚本
 └─ docs/                    开发文档唯一目录：PRD、开发计划、验收记录
 ```
@@ -128,14 +135,16 @@ SteamGamePicker/
 | :--- | :--- |
 | [产品需求文档](docs/PRD.md) | 目标、页面结构、模块数据与操作、本地数据要求、必做与不做、验收标准 |
 | [开发计划](docs/DEV_PLAN.md) | M0–M8 任务分解、接口契约、日程与执行结果 |
-| [验收记录](docs/ACCEPTANCE.md) | AC-01 ~ AC-62 逐条结果与证据、实现偏差说明、待补测清单 |
+| [验收记录](docs/ACCEPTANCE.md) | AC-01 ~ AC-69 逐条结果与证据、实现偏差说明、待补测清单 |
+| [更新日志](CHANGELOG.md) | 每个版本的新增、变更与修复 |
 
 ## 隐私与安全
 
 - 只访问 Steam 公开接口，**不需要登录 Steam 账号**，不涉及购买、下载、启动游戏
 - API Key 仅保存在本机 `%APPDATA%\SteamGamePicker\config.json`，不上传、不硬编码、不随安装包分发
 - 日志自动脱敏：写入的日志里不会出现完整 API Key
-- 全程 HTTPS，且不会用"关闭证书校验"的方式绕过网络问题
+- 全程 HTTPS；证书校验失败时改用系统信任库重试，**绝不以关闭校验绕过**
+- 所有数据都在本机：不收集、不上报任何使用信息
 
 ## 许可
 
@@ -161,4 +170,3 @@ Copyright (c) 2026 collinszheng。
 非自由程序（含商业程序），因此本项目的构建产物（`SteamGamePicker.exe` / 安装包）
 不受 GPL 约束。安装包由 Inno Setup 生成，其许可证允许自由使用（商用条款见
 [jrsoftware.org](https://jrsoftware.org/)）。
-
